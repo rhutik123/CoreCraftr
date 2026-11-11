@@ -7,13 +7,13 @@
 
 CoreCraftr follows a clean, layered Django monolith architecture without microservices, separate SPA frameworks, or generic chatbots. Domain business logic lives inside dedicated `services/` modules so Django views, DRF API endpoints, templates, and tests share identical rules and behavior.
 
-The outer Django configuration package is named `corecraftr` (renamed safely from the original typo package `ecomnmerce` with zero migration impact), while the modular domain apps remain `store`, `pc_builder`, and `ai_engine`.
+The outer Django configuration package is named `corecraftr` (renamed safely from the original typo package `ecomnmerce` with zero migration impact), while the modular domain apps are `store`, `pc_builder`, `ai_engine`, and `management`.
 
 ```
 CoreCraftr/
 ├── corecraftr/                  # Django project settings, root URL routing, Admin branding, WSGI/ASGI
 ├── store/                       # Core e-commerce domain (catalogue, cart, checkout, accounts, wishlist, compare)
-│   ├── models.py                # Category, Brand, Product, Inventory, HardwareSpecProfile, Cart, Order...
+│   ├── models.py                # Category, Brand, Product (with status/cost_price), Inventory, ProductImage, HardwareSpecProfile...
 │   ├── signals.py               # Automatic Customer profile creation on User creation
 │   ├── context_processors.py    # Global navbar categories, cart item count, builder part count
 │   ├── templatetags/            # Indian numbering currency formatting (|inr, |inr_whole)
@@ -21,7 +21,7 @@ CoreCraftr/
 │   │   ├── catalog_service.py   # Homepage sections, multi-facet filtering, sorting, category key highlights
 │   │   ├── cart_service.py      # Session & user cart management, atomic stock checks, login merge
 │   │   ├── cart_compatibility.py# Cart hardware compatibility bridge reusing CompatibilityEngine
-│   │   ├── order_service.py     # Transactional checkout, server-side pricing, order compatibility audit
+│   │   ├── order_service.py     # Transactional checkout, StockMovement order deduction, order compatibility audit
 │   │   └── comparison_service.py# Side-by-side matrix construction & diff highlighting
 │   └── management/commands/
 │       └── seed_hardware_catalog.py # Idempotent hardware catalog + Chipset-CPU matrix seeder
@@ -33,12 +33,20 @@ CoreCraftr/
 │   │   └── builder_service.py   # Mode switching, slot filtering, saved snapshots, build-to-cart
 │   ├── views.py                 # HTML workspace, beginner recommend, slot picker, saved builds
 │   └── api_views.py             # DRF JSON endpoints (/builder/api/...)
-├── ai_engine/                   # Catalog-grounded AI orchestration + deterministic fallback
+├── ai_engine/                   # Catalog-grounded AI orchestration + spec research + deterministic fallback
 │   └── services/
-│       └── recommender.py       # AIProviderClient, DeterministicBuildRecommender, CartCompatibilityAdvisor
-├── templates/                   # Shared base template (base.html) and custom error pages (404.html, 500.html)
-├── static/                      # CSS, JS, CoreCraftr SVG mark, category SVGs, product assets
-└── media/                       # Uploaded product images (runtime/user media)
+│       ├── recommender.py       # AIProviderClient, DeterministicBuildRecommender, CartCompatibilityAdvisor
+│       └── spec_researcher.py   # WebSearchClient, ProductSpecResearchService (schema/source/conflict validation)
+├── management/                  # Owner & Inventory Management Portal (/management/)
+│   ├── models.py                # PortalPermission, StockMovement, PriceChangeLog, AuditLog, AIResearchDraft, CSVImportBatch
+│   ├── permissions.py           # 'Inventory Manager' group sync & Owner/Manager decorators
+│   ├── spec_schemas.py          # Category component_slot -> HardwareSpecProfile field mapping & coercion
+│   ├── context_processors.py    # Hides portal nav flags from unauthorized users
+│   ├── forms.py, views.py, urls.py
+│   └── services/                # audit_service, image_service, inventory_service, product_service, csv_service, user_service, ai_spec_service
+├── templates/                   # Shared base template (base.html) and custom error pages (403.html, 404.html, 500.html)
+├── static/                      # CSS (main.css, management.css), JS (cart.js, management.js), SVGs, assets
+└── media/                       # Uploaded product & gallery images (runtime/user media)
 ```
 
 ---
@@ -99,3 +107,12 @@ Both PC Builder recommendations (`BuildRecommendationOrchestrator`) and Cart con
 - **Pre-Login Session Capture**: Captures guest `session_key` before `login()` session rotation so guest carts and guest PC builds merge cleanly.
 - **Server-Side Checkout Authority**: All prices, shipping calculation, atomic stock locks (`select_for_update`), fresh compatibility checks, and totals execute strictly server-side.
 - **Hardened HTTP & Cookie Defaults**: `SESSION_COOKIE_HTTPONLY = True`, `SameSite = 'Lax'`, `X_FRAME_OPTIONS = 'DENY'`, `SECURE_CONTENT_TYPE_NOSNIFF = True`, and strict HTTPS/HSTS flags when `DJANGO_DEBUG=False`.
+
+---
+
+## 7. Owner & Inventory Management Portal (`management`)
+
+- **Role-Based Access Control**: Uses Django auth + custom `PortalPermission` definitions (`management.permissions`). `Owner` (`is_superuser=True`) holds full permissions, last-active-superuser deactivation protection, staff provisioning/revocation (`/management/users/`), and read-only audit viewing (`/management/audit/`). `Inventory Manager` uses the synced Django `Inventory Manager` group with catalog, stock, pricing, AI spec draft, CSV, and reporting permissions while receiving `403` on `/management/users/`, `/management/audit/`, and `/admin/`. Customers receive `403` across all `/management/` routes.
+- **Lifecycle Synchronization**: `Product.status` (`draft`, `published`, `archived`) and `Product.is_active` synchronize on save so drafts and archived products remain hidden from customer search, cart additions, PC Builder picks, and AI recommendations without deleting historical `OrderItem` records.
+- **Transactional Stock & Audit Integrity**: `InventoryService` locks rows with `select_for_update()` and optional microsecond optimistic version tokens, prevents negative or below-reserved adjustments, logs `StockMovement` (`restock`, `damaged`, `order_deduction`, `csv_import`, etc.), records `PriceChangeLog`, and appends immutable `AuditLog` entries whose ORM `save()` and `delete()`/`update()` reject mutations.
+- **Schema-Constrained AI Spec Research**: Extends `AIProviderClient` with `ProductSpecResearchService` (`ai_engine/services/spec_researcher.py`) and optional `WebSearchClient`: enforces per-user hourly cache rate limiting, strips commercial keys (`sku`, `price`, `cost_price`, `quantity`, `status`), classifies `manufacturer` vs `third_party` URLs, holds conflicting values for manual resolution, never invents unknown specs, and stores an `AIResearchDraft` requiring explicit staff confirmation before persisting.

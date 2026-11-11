@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block portal_title %}Management Portal{% endblock %} | CoreCraftr</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="{% static 'css/management.css' %}" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="portal-body">
+  <div class="portal-shell">
+    <aside class="portal-sidebar">
+      <div class="portal-sidebar-brand d-flex justify-content-between align-items-center">
+        <div>
+          <a href="{% url 'management:dashboard' %}" class="text-decoration-none text-white fw-bold fs-5 d-flex align-items-center gap-2">
+            <i class="bi bi-cpu-fill text-primary"></i>
+            <span>CoreCraftr Portal</span>
+          </a>
+          <div class="small text-secondary mt-1">{{ portal_role_label }} Workspace</div>
+        </div>
+      </div>
+
+      <nav class="nav flex-column p-3 portal-nav flex-grow-1">
+        <a class="nav-link {% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'management:dashboard' %}">
+          <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+        </a>
+
+        <div class="portal-nav-section">Catalog & Specs</div>
+        <a class="nav-link {% if active_nav == 'products' %}active{% endif %}" href="{% url 'management:product_list' %}">
+          <i class="bi bi-box-seam"></i><span>Products</span>
+        </a>
+        <a class="nav-link" href="{% url 'management:product_create' %}">
+          <i class="bi bi-plus-circle"></i><span>Add Product</span>
+        </a>
+        <a class="nav-link {% if active_nav == 'import_export' %}active{% endif %}" href="{% url 'management:import_export' %}">
+          <i class="bi bi-filetype-csv"></i><span>Import / Export CSV</span>
+        </a>
+
+        <div class="portal-nav-section">Inventory & Analytics</div>
+        <a class="nav-link {% if active_nav == 'inventory' %}active{% endif %}" href="{% url 'management:inventory_list' %}">
+          <i class="bi bi-clipboard-data"></i><span>Stock Control</span>
+        </a>
+        <a class="nav-link {% if active_nav == 'stock_history' %}active{% endif %}" href="{% url 'management:stock_history' %}">
+          <i class="bi bi-clock-history"></i><span>Stock Movements</span>
+        </a>
+        <a class="nav-link {% if active_nav == 'reports' %}active{% endif %}" href="{% url 'management:reports' %}">
+          <i class="bi bi-bar-chart-line"></i><span>Valuation & Reports</span>
+        </a>
+
+        {% if is_portal_owner %}
+        <div class="portal-nav-section">Owner Administration</div>
+        <a class="nav-link {% if active_nav == 'users' %}active{% endif %}" href="{% url 'management:user_management' %}">
+          <i class="bi bi-people"></i><span>Users & Staff Roles</span>
+        </a>
+        <a class="nav-link {% if active_nav == 'audit' %}active{% endif %}" href="{% url 'management:audit_log' %}">
+          <i class="bi bi-journal-check"></i><span>Audit Logs</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="p-3 border-top border-secondary border-opacity-25 small">
+        <a href="{% url 'store' %}" class="btn btn-outline-light btn-sm w-100 mb-2">
+          <i class="bi bi-shop me-1"></i>View Storefront
+        </a>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+            <i class="bi bi-box-arrow-right me-1"></i>Sign Out
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="portal-main">
+      <header class="portal-topbar d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+          <h1 class="h5 fw-bold mb-0">{% block page_heading %}Management Portal{% endblock %}</h1>
+          <div class="small text-muted">{% block page_subheading %}CoreCraftr catalog, inventory, and operations{% endblock %}</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge {% if is_portal_owner %}bg-primary{% else %}bg-success{% endif %}">
+            {{ portal_role_label }}
+          </span>
+          <span class="small fw-semibold text-dark">{{ request.user.username }}</span>
+        </div>
+      </header>
+
+      <main class="portal-content">
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          {% endfor %}
+        {% endif %}
+
+        {% block portal_content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{% static 'js/management.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -85,22 +85,26 @@ Run migrations and populate the hardware catalogue (13 categories, verified spec
 ```powershell
 python manage.py migrate
 python manage.py seed_hardware_catalog
+# Optional: seed additional Owner & Inventory Portal demo data (draft/archived/low-stock SKUs, movements, sample order, demo manager/customer):
+python manage.py seed_portal_demo
 ```
 
-`seed_hardware_catalog` is **idempotent** — running it multiple times safely upserts curated SKUs (`is_demo_data=True`), enriches legacy AM4 processors without deleting existing database rows, and refreshes `ChipsetCPUSupport` entries.
+Both `seed_hardware_catalog` and `seed_portal_demo` are **idempotent** — running them multiple times safely upserts curated SKUs (`is_demo_data=True`), enriches legacy AM4 processors without deleting existing database rows, and refreshes `ChipsetCPUSupport` entries without duplicating sample orders or stock ledger rows.
 
-Create an admin superuser for CoreCraftr Admin (`/admin/`):
+Create an initial Store Owner (superuser) for both the Owner & Inventory Management Portal (`/management/`) and CoreCraftr Django Admin (`/admin/`):
 ```powershell
 python manage.py createsuperuser
 ```
 
+Running `migrate` automatically creates and synchronizes the `Inventory Manager` permission group. Sign in as the Owner at `/login/`, open **Management Portal -> Users & Staff Roles** (`/management/users/`), and either grant `Inventory Manager` access to an existing user or create a new manager account directly.
+
 ---
 
-## 5. Optional AI Provider Configuration
+## 5. Optional AI & Search Provider Configuration
 
-CoreCraftr works out of the box with `AI_PROVIDER=none` using deterministic recommendation and compatibility logic.
+CoreCraftr works out of the box with `AI_PROVIDER=none` and `AI_SEARCH_PROVIDER=none` using deterministic recommendation, compatibility checks, and manual specification forms.
 
-To enable AI-assisted ranking and natural-language explanations (always strictly grounded to verified DB products and validated by `CompatibilityEngine`):
+To enable AI-assisted build guidance and optional Product Specification Research in the portal:
 
 For OpenAI:
 ```dotenv
@@ -118,6 +122,16 @@ AI_MODEL=gemini-2.0-flash
 AI_TIMEOUT_SECONDS=15
 ```
 
+Optional web search grounding & rate-limit settings for Portal AI Spec Research:
+```dotenv
+# none | tavily | serper | google_cse
+AI_SEARCH_PROVIDER=none
+AI_SEARCH_API_KEY=
+AI_SEARCH_ENGINE_ID=
+AI_RESEARCH_RATE_LIMIT_PER_HOUR=20
+PRODUCT_IMAGE_MAX_BYTES=5242880
+```
+
 ---
 
 ## 6. Collecting Static Files & Running the Server
@@ -133,7 +147,17 @@ Key application URLs:
 - Product Comparison: `http://127.0.0.1:8000/compare/`
 - Intelligent PC Builder (Beginner & Expert Modes): `http://127.0.0.1:8000/builder/`
 - PC Builder JSON APIs: `http://127.0.0.1:8000/builder/api/build/`
+- Owner & Inventory Management Portal: `http://127.0.0.1:8000/management/`
+  - Products & Specs Studio: `/management/products/` & `/management/products/add/`
+  - Stock Control & Ledger: `/management/inventory/` & `/management/inventory/history/`
+  - Two-Step CSV Import / Export: `/management/import-export/`
+  - Reports & Verified Valuation: `/management/reports/`
+  - Owner-Only Users & Audit Logs: `/management/users/` & `/management/audit/`
 - CoreCraftr Django Admin: `http://127.0.0.1:8000/admin/`
+
+### Portal CSV & Inventory Rules
+- **CSV Import Columns**: Required columns are `sku`, `name`, `price` (plus `category_slug` for new SKUs). Optional columns include `brand_name`, `model_number`, `status` (`draft`/`published`/`archived`), `cost_price`, `stock_quantity`, `low_stock_threshold`, `warranty_months`, `short_description`, `description`, and typed spec columns (`socket`, `chipset`, `form_factor`, `memory_type`, `tdp_watts`, `wattage`, etc.). Upload generates a row-by-row preview (`CSVImportBatch`) requiring confirmation before mutating DB records.
+- **Stock Adjustments**: All portal adjustments (`add`, `subtract`, `set`) require a valid reason, lock the `Inventory` row with `select_for_update()`, block stock below `0` or `reserved_quantity`, and log both `StockMovement` and `AuditLog`. Customer checkouts record automatic `order_deduction` movements.
 
 ---
 

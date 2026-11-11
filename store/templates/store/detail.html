@@ -19,8 +19,17 @@
   <div class="row g-4 align-items-start">
     <div class="col-md-5">
       <div class="rounded-3 overflow-hidden bg-dark border">
-        <img src="{{ product.imageURL }}" alt="{{ product.name }}" class="img-fluid w-100" style="max-height: 360px; object-fit: cover;">
+        <img id="product-main-image" src="{{ product.imageURL }}" alt="{{ product.name }}" class="img-fluid w-100" style="max-height: 360px; object-fit: cover;">
       </div>
+      {% if product.gallery_images.all|length > 1 %}
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        {% for gimg in product.gallery_images.all %}
+        <button type="button" class="btn p-0 border rounded overflow-hidden bg-light" style="width: 68px; height: 68px;" onclick="document.getElementById('product-main-image').src='{{ gimg.url }}';" title="{{ gimg.alt_text|default:product.name }}">
+          <img src="{{ gimg.url }}" alt="{{ gimg.alt_text|default:product.name }}" class="w-100 h-100" style="object-fit: cover;">
+        </button>
+        {% endfor %}
+      </div>
+      {% endif %}
       <div class="d-flex flex-wrap gap-2 mt-3">
         {% if product.spec_verified %}
         <span class="badge text-bg-success"><i class="bi bi-patch-check me-1"></i>Verified Specs</span>

@@ -75,6 +75,10 @@
               <li><a class="dropdown-item" href="{% url 'builder_saved_list' %}"><i class="bi bi-pc-display me-2"></i>Saved PC Builds</a></li>
               <li><a class="dropdown-item" href="{% url 'order_history' %}"><i class="bi bi-box-seam me-2"></i>Order History</a></li>
               <li><a class="dropdown-item" href="{% url 'wishlist' %}"><i class="bi bi-heart me-2"></i>Wishlist ({{ wishlist_count }})</a></li>
+              {% if can_access_portal %}
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item fw-semibold text-success" href="{% url 'management:dashboard' %}"><i class="bi bi-boxes me-2"></i>Management Portal</a></li>
+              {% endif %}
               {% if request.user.is_staff %}
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-primary" href="/admin/"><i class="bi bi-shield-lock me-2"></i>Django Admin</a></li>

@@ -1,0 +1,100 @@
+{% extends "management/base_portal.html" %}
+
+{% block portal_title %}Reports & Valuation{% endblock %}
+{% block page_heading %}Inventory Valuation & Operational Reports{% endblock %}
+{% block page_subheading %}Verified catalog metrics computed strictly from persisted database values{% endblock %}
+
+{% block portal_content %}
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Verified Cost Inventory Value</div>
+      {% if metrics.valued_sku_count > 0 %}
+      <div class="portal-kpi-value text-primary mt-1">Rs. {{ metrics.cost_valuation_total|floatformat:2 }}</div>
+      {% else %}
+      <div class="portal-kpi-value fs-5 text-muted mt-1">Unavailable (no SKUs have cost_price)</div>
+      {% endif %}
+      <div class="small text-muted mt-2">
+        Computed strictly over <strong>{{ metrics.valued_sku_count }}</strong> of <strong>{{ metrics.non_archived_count }}</strong> non-archived SKUs with verified <code>cost_price</code>.
+        {% if metrics.missing_cost_count > 0 %}
+        <span class="text-warning fw-semibold">({{ metrics.missing_cost_count }} SKU(s) excluded due to missing cost price — never estimated.)</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Total Retail Stock Value</div>
+      <div class="portal-kpi-value text-success mt-1">Rs. {{ metrics.retail_value_total|floatformat:2 }}</div>
+      <div class="small text-muted mt-2">Across <strong>{{ metrics.total_units_on_hand }}</strong> physical unit(s) on hand in non-archived SKUs.</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Catalog Readiness</div>
+      <div class="portal-kpi-value mt-1">{{ metrics.published_count }} Active</div>
+      <div class="small text-muted mt-2">{{ metrics.draft_count }} drafts · {{ metrics.archived_count }} archived · {{ metrics.low_stock_count }} low stock · {{ metrics.out_of_stock_count }} out of stock</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="portal-card h-100">
+      <div class="portal-card-header">Catalog Coverage by Category</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Category</th>
+              <th>Published</th>
+              <th>Total SKUs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat in category_breakdown %}
+            <tr>
+              <td>{{ cat.name }}</td>
+              <td><span class="badge bg-success">{{ cat.published_products }}</span></td>
+              <td>{{ cat.total_products }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="portal-card h-100">
+      <div class="portal-card-header">Recent Retail & Cost Price Changes</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>SKU</th>
+              <th>Price Change</th>
+              <th>Reason</th>
+              <th>By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pc in recent_price_changes %}
+            <tr>
+              <td class="small text-muted">{{ pc.created_at|date:"Y-m-d H:i" }}</td>
+              <td><code>{{ pc.product.sku }}</code></td>
+              <td class="small">Rs. {{ pc.previous_price|default:'--' }} -> <strong>Rs. {{ pc.new_price }}</strong></td>
+              <td class="small">{{ pc.reason }}</td>
+              <td class="small">{{ pc.changed_by.username|default:'System' }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No price changes recorded yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

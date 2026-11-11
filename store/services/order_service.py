@@ -132,8 +132,29 @@ def create_order_from_cart(
             quantity=item.quantity,
         )
         inv = inventories[product.id]
-        inv.quantity = max(0, inv.quantity - item.quantity)
+        previous_quantity = inv.quantity
+        inv.quantity = max(0, previous_quantity - item.quantity)
         inv.save(update_fields=['quantity', 'updated_at'])
+        if previous_quantity != inv.quantity:
+            from django.apps import apps
+
+            if apps.is_installed('management'):
+                StockMovement = apps.get_model('management', 'StockMovement')
+                actor_user = (
+                    order.customer.user
+                    if getattr(order, 'customer_id', None) and getattr(order.customer, 'user_id', None)
+                    else None
+                )
+                StockMovement.objects.create(
+                    product=product,
+                    previous_quantity=previous_quantity,
+                    change_amount=inv.quantity - previous_quantity,
+                    new_quantity=inv.quantity,
+                    reason='order_deduction',
+                    notes=f'Order #{order.id} placement deduction',
+                    reference_order=order,
+                    performed_by=actor_user,
+                )
 
     if requires_shipping:
         ShippingAddress.objects.create(

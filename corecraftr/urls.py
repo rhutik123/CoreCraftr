@@ -9,6 +9,7 @@ admin.site.index_title = 'CoreCraftr Storefront, Catalog & PC Builder Control'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('management/', include('management.urls')),
     path('builder/', include('pc_builder.urls')),
     path('', include('store.urls')),
 ]
