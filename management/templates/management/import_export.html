@@ -1,135 +1,155 @@
 {% extends "management/base_portal.html" %}
 
 {% block portal_title %}Import / Export CSV{% endblock %}
-{% block page_heading %}Catalog Bulk CSV Import & Export{% endblock %}
+{% block page_heading %}Catalog Bulk CSV Import &amp; Export{% endblock %}
 {% block page_subheading %}Download catalog snapshots or preview CSV updates row-by-row before applying changes{% endblock %}
 
 {% block portal_content %}
-<div class="row g-4 mb-4">
-  <div class="col-lg-5">
-    <div class="portal-card h-100">
-      <div class="portal-card-header"><i class="bi bi-download me-2"></i>Export Full Catalog</div>
-      <div class="p-3">
-        <p class="small text-muted">
-          Downloads a UTF-8 CSV containing every product's SKU, pricing, cost price, lifecycle status, stock counts, and typed hardware specifications.
-          You can edit rows in spreadsheet software and re-upload for two-step verification.
-        </p>
-        <a href="{% url 'management:export_csv' %}" class="btn btn-outline-primary">
-          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Download Catalog CSV
-        </a>
-        <hr>
-        <div class="small fw-semibold mb-1">Valid <code>category_slug</code> Values:</div>
-        <div class="d-flex flex-wrap gap-1">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
+  <!-- Export Full Catalog -->
+  <div class="lg:col-span-5 cc-card overflow-hidden flex flex-col">
+    <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
+      <i data-lucide="download" class="w-4 h-4 text-accent-ink"></i>
+      <span>Export Full Catalog</span>
+    </div>
+    <div class="p-5 flex-1 space-y-4">
+      <p class="text-xs text-muted leading-relaxed">
+        Downloads a UTF-8 CSV containing every product's SKU, pricing, cost price, lifecycle status, stock counts, and typed hardware specifications.
+        Edit rows in spreadsheet software and re-upload for two-step verification.
+      </p>
+      <a href="{% url 'management:export_csv' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-green-400"></i>
+        <span>Download Catalog CSV</span>
+      </a>
+      <div class="border-t border-border pt-3 space-y-2">
+        <div class="text-xs font-bold text-ink">Valid <code class="cc-mono text-accent-ink">category_slug</code> Values:</div>
+        <div class="flex flex-wrap gap-1.5">
           {% for cat in categories %}
-          <span class="badge bg-light text-dark border">{{ cat.slug }}</span>
+            <span class="cc-badge cc-badge-neutral cc-mono text-[10px]">{{ cat.slug }}</span>
           {% endfor %}
         </div>
       </div>
     </div>
   </div>
 
-  <div class="col-lg-7">
-    <div class="portal-card h-100">
-      <div class="portal-card-header"><i class="bi bi-upload me-2"></i>Step 1: Upload CSV for Preview & Validation</div>
-      <div class="p-3">
-        <p class="small text-muted">
-          Required columns: <code>sku</code>, <code>name</code>, <code>price</code> (plus <code>category_slug</code> for new SKUs).
-          Uploading generates a safe preview first — no products or stock quantities change until Step 2 confirmation.
-        </p>
-        <form method="post" enctype="multipart/form-data">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="preview">
-          <div class="mb-3">
-            {{ form.csv_file }}
-          </div>
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check2-square me-1"></i>Analyze & Preview CSV
-          </button>
-        </form>
-      </div>
+  <!-- Step 1 Upload Form -->
+  <div class="lg:col-span-7 cc-card overflow-hidden flex flex-col">
+    <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
+      <i data-lucide="upload" class="w-4 h-4 text-tech-ink"></i>
+      <span>Step 1: Upload CSV for Preview &amp; Validation</span>
+    </div>
+    <div class="p-5 space-y-4">
+      <p class="text-xs text-muted leading-relaxed">
+        Required columns: <code class="cc-mono text-ink">sku</code>, <code class="cc-mono text-ink">name</code>, <code class="cc-mono text-ink">price</code> (plus <code class="cc-mono text-ink">category_slug</code> for new SKUs).
+        Uploading generates a safe preview first &mdash; no products or stock quantities change until Step 2 confirmation.
+      </p>
+      <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="preview">
+        <div>
+          {{ form.csv_file }}
+          {{ form.csv_file.errors }}
+        </div>
+        <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm">
+          <i data-lucide="circle-check" class="w-4 h-4"></i>
+          <span>Analyze &amp; Preview CSV</span>
+        </button>
+      </form>
     </div>
   </div>
 </div>
 
 {% if active_batch %}
-<div class="portal-card mb-4 border-primary-subtle">
-  <div class="portal-card-header bg-primary bg-opacity-10 d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <div>
-      <strong>Step 2 Preview: {{ active_batch.filename }}</strong>
-      <span class="badge bg-dark ms-2">{{ active_batch.total_rows }} rows</span>
-      <span class="badge bg-success ms-1">{{ active_batch.valid_rows }} valid</span>
-      <span class="badge bg-danger ms-1">{{ active_batch.error_rows }} errors</span>
+  <div class="cc-card overflow-hidden border-tech/50 mb-6">
+    <div class="px-5 py-3.5 border-b border-border bg-tech/10 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <strong class="text-sm text-ink">Step 2 Preview: {{ active_batch.filename }}</strong>
+        <span class="cc-badge cc-badge-neutral cc-mono">{{ active_batch.total_rows }} rows</span>
+        <span class="cc-badge cc-badge-compatible cc-mono">{{ active_batch.valid_rows }} valid</span>
+        <span class="cc-badge cc-badge-incompatible cc-mono">{{ active_batch.error_rows }} errors</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if active_batch.valid_rows > 0 and active_batch.error_rows == 0 %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <input type="hidden" name="batch_id" value="{{ active_batch.id }}">
+            <button type="submit" class="cc-btn cc-btn-success cc-btn-sm">
+              <i data-lucide="circle-check" class="w-4 h-4"></i>
+              <span>Confirm &amp; Apply All ({{ active_batch.valid_rows }})</span>
+            </button>
+          </form>
+        {% elif active_batch.valid_rows > 0 %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm_skip_errors">
+            <input type="hidden" name="batch_id" value="{{ active_batch.id }}">
+            <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm">
+              <i data-lucide="triangle-alert" class="w-4 h-4"></i>
+              <span>Apply Valid Rows Only ({{ active_batch.valid_rows }})</span>
+            </button>
+          </form>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="cancel">
+          <input type="hidden" name="batch_id" value="{{ active_batch.id }}">
+          <button type="submit" class="cc-btn cc-btn-danger cc-btn-sm">Discard Preview</button>
+        </form>
+      </div>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-      {% if active_batch.valid_rows > 0 and active_batch.error_rows == 0 %}
-      <form method="post" class="d-inline">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="confirm">
-        <input type="hidden" name="batch_id" value="{{ active_batch.id }}">
-        <button type="submit" class="btn btn-success btn-sm">
-          <i class="bi bi-check-circle me-1"></i>Confirm & Apply All ({{ active_batch.valid_rows }})
-        </button>
-      </form>
-      {% elif active_batch.valid_rows > 0 %}
-      <form method="post" class="d-inline">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="confirm_skip_errors">
-        <input type="hidden" name="batch_id" value="{{ active_batch.id }}">
-        <button type="submit" class="btn btn-warning btn-sm">
-          <i class="bi bi-exclamation-circle me-1"></i>Apply Valid Rows Only ({{ active_batch.valid_rows }})
-        </button>
-      </form>
-      {% endif %}
-      <form method="post" class="d-inline">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="cancel">
-        <input type="hidden" name="batch_id" value="{{ active_batch.id }}">
-        <button type="submit" class="btn btn-outline-danger btn-sm">Discard Preview</button>
-      </form>
+
+    <div class="overflow-x-auto">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>Row</th>
+            <th>Action</th>
+            <th>SKU</th>
+            <th>Product Name</th>
+            <th>Price / Stock</th>
+            <th>Status</th>
+            <th>Validation Messages</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in active_batch.preview_payload.rows %}
+            <tr class="{% if r.errors %}bg-red-500/10{% elif r.warnings %}bg-amber-500/10{% endif %}">
+              <td class="cc-mono text-xs">{{ r.row_number }}</td>
+              <td>
+                <span class="cc-badge text-[10px] uppercase {% if r.action == 'create' %}cc-badge-accent{% else %}cc-badge-tech{% endif %}">{{ r.action|upper }}</span>
+              </td>
+              <td><code class="cc-mono text-xs text-accent-ink">{{ r.sku }}</code></td>
+              <td class="text-xs font-semibold text-ink">{{ r.name }}</td>
+              <td class="text-xs cc-mono">Rs. {{ r.price }}{% if r.stock_quantity != None %} &middot; Qty: {{ r.stock_quantity }}{% endif %}</td>
+              <td><span class="cc-badge cc-badge-neutral text-[10px]">{{ r.status }}</span></td>
+              <td class="text-xs space-y-1">
+                {% for err in r.errors %}
+                  <div class="text-red-400 font-semibold flex items-center gap-1"><i data-lucide="octagon-alert" class="w-3.5 h-3.5 shrink-0"></i><span>{{ err }}</span></div>
+                {% endfor %}
+                {% for w in r.warnings %}
+                  <div class="text-amber-400 flex items-center gap-1"><i data-lucide="info" class="w-3.5 h-3.5 shrink-0"></i><span>{{ w }}</span></div>
+                {% endfor %}
+                {% if not r.errors and not r.warnings %}
+                  <span class="text-green-400 font-semibold">Ready</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
-  <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Row</th>
-          <th>Action</th>
-          <th>SKU</th>
-          <th>Product Name</th>
-          <th>Price / Stock</th>
-          <th>Status</th>
-          <th>Validation Messages</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in active_batch.preview_payload.rows %}
-        <tr class="{% if r.errors %}table-danger{% elif r.warnings %}table-warning{% endif %}">
-          <td>{{ r.row_number }}</td>
-          <td>
-            <span class="badge {% if r.action == 'create' %}bg-primary{% else %}bg-info text-dark{% endif %}">{{ r.action|upper }}</span>
-          </td>
-          <td><code>{{ r.sku }}</code></td>
-          <td>{{ r.name }}</td>
-          <td class="small">Rs. {{ r.price }}{% if r.stock_quantity != None %} · Qty: {{ r.stock_quantity }}{% endif %}</td>
-          <td><span class="badge bg-light text-dark border">{{ r.status }}</span></td>
-          <td class="small">
-            {% for err in r.errors %}<div class="text-danger fw-semibold"><i class="bi bi-x-circle me-1"></i>{{ err }}</div>{% endfor %}
-            {% for w in r.warnings %}<div class="text-dark"><i class="bi bi-info-circle me-1"></i>{{ w }}</div>{% endfor %}
-            {% if not r.errors and not r.warnings %}<span class="text-success">Ready</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
 {% endif %}
 
-<div class="portal-card">
-  <div class="portal-card-header">Recent Import Batches</div>
-  <div class="table-responsive">
-    <table class="table table-sm mb-0 align-middle">
-      <thead class="table-light">
+<!-- Recent Batches -->
+<div class="cc-card overflow-hidden">
+  <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink">
+    Recent Import Batches
+  </div>
+  <div class="overflow-x-auto">
+    <table class="cc-table">
+      <thead>
         <tr>
           <th>Batch</th>
           <th>File</th>
@@ -141,20 +161,20 @@
       </thead>
       <tbody>
         {% for b in recent_batches %}
-        <tr>
-          <td>#{{ b.id }}</td>
-          <td>{{ b.filename }}</td>
-          <td><span class="badge bg-secondary">{{ b.get_status_display }}</span></td>
-          <td class="small">{{ b.total_rows }} ({{ b.valid_rows }} ok / {{ b.error_rows }} err)</td>
-          <td class="small">
-            {% if b.applied_summary %}
-              Created: {{ b.applied_summary.created }}, Updated: {{ b.applied_summary.updated }}, Skipped: {{ b.applied_summary.skipped_errors }}
-            {% else %}--{% endif %}
-          </td>
-          <td class="small">{{ b.uploaded_by.username|default:'System' }}</td>
-        </tr>
+          <tr>
+            <td class="cc-mono text-xs font-bold">#{{ b.id }}</td>
+            <td class="text-xs font-medium text-ink">{{ b.filename }}</td>
+            <td><span class="cc-badge cc-badge-neutral text-[10px]">{{ b.get_status_display }}</span></td>
+            <td class="text-xs cc-mono">{{ b.total_rows }} ({{ b.valid_rows }} ok / {{ b.error_rows }} err)</td>
+            <td class="text-xs text-muted">
+              {% if b.applied_summary %}
+                Created: {{ b.applied_summary.created }}, Updated: {{ b.applied_summary.updated }}, Skipped: {{ b.applied_summary.skipped_errors }}
+              {% else %}--{% endif %}
+            </td>
+            <td class="text-xs text-ink">{{ b.uploaded_by.username|default:'System' }}</td>
+          </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-3">No CSV import batches yet.</td></tr>
+          <tr><td colspan="6" class="text-center text-xs text-muted py-6">No CSV import batches yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

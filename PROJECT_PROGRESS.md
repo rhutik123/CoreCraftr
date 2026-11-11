@@ -1,7 +1,7 @@
 # PROJECT PROGRESS — CoreCraftr (Computer Hardware E-Commerce + Intelligent PC Builder)
 
 Repository: `CoreCraftr` (`https://github.com/rhutik123/CoreCraftr`, migrated from `https://github.com/rhutik123/Ecommerce-website`)  
-Active Branch: `feature/inventory-management-portal` (branched from `master` at `bdd14ca`)  
+Active Branch: `feature/corecraftr-redesign` (branched from `master` at `489ba3b`)  
 Tagline: *Build Smarter. Build Better.*
 
 ---
@@ -177,3 +177,28 @@ Tagline: *Build Smarter. Build Better.*
 ### Known Limitations Preserved
 - Live web search (`AI_SEARCH_PROVIDER`) and live LLM calls (`AI_PROVIDER`) remain unconfigured in the local test environment; external API paths are covered by deterministic fallbacks and mocked unit tests.
 - Runtime verification ran on SQLite fallback; PostgreSQL migration execution remains targeted via `.env` configuration.
+
+---
+
+## Phase 11 — Complete Frontend Redesign & UI/UX Modernisation (Tailwind CSS v4 + Lucide)
+**Status:** Completed
+
+### Completed Tasks
+- **Tailwind CSS v4 Standalone Build (`pytailwindcss` + `frontend_src/tailwind.css` -> `static/css/app.min.css`)**: Added `pytailwindcss>=0.4.2` to `requirements.txt`, compiled minified Tailwind CSS v4 (`tailwindcss v4.3.5`) with `@custom-variant dark` / `light`, dark-first obsidian hardware palette (`#10141B` / `#191F29` / `#252E3B`, `#F47738` accent, `#62A6F8` tech secondary) and light mode (`#F6F7F9` / `#FFFFFF` / `#E9EDF2`, `#E9672C`, `#287DD6`), Plus Jakarta Sans + JetBrains Mono typography, and reusable `.cc-*` primitives.
+- **3-Mode Zero-Flash Theme & Vanilla JS Primitives (`static/js/theme.js`)**: Implemented persistent `Dark | Light | System` switcher (`corecraftr-theme` in `localStorage`) with inline `<head>` pre-paint script, `prefers-color-scheme` listener, and accessible dropdown, mobile drawer, modal, accordion, and dismissible alert controls replacing Bootstrap JS (`data-bs-*`).
+- **Local Lucide Iconography (`static/vendor/lucide.min.js` + `store_extras.py`)**: Replaced all `bi-*` icon classes with verified Lucide `v0.475.0` icons and added `lucide_icon` template filter mapping DB icon classes and component slots safely.
+- **Full Template Modernization Across Storefront, PC Builder, Portal & Errors**:
+  - Updated `templates/base.html`, `templates/components/{theme_switcher,messages,pagination}.html`, and `templates/{403,404,500}.html`.
+  - Redesigned all `store/templates/store/` pages (homepage hero, faceted catalog grid, unified `.cc-product-frame` cards, gallery detail & grouped specs, side-by-side comparison, cart compatibility panel & swap cards, checkout with conflict acknowledgement checkbox fix, orders, wishlist, profile, and auth flows) plus `static/js/cart.js`.
+  - Redesigned all `pc_builder/templates/pc_builder/` templates (`workspace.html`, `select_component.html`, `saved_builds.html`) and updated `SLOT_METADATA` / form widget classes cleanly without breaking compatibility workflows.
+  - Redesigned all `management/templates/management/` views (`base_portal.html` desktop sidebar & mobile drawer, dashboard, product studio + `{% load static %}` fix on `product_form.html`, inventory table & ledger, CSV import/export, valuation reports, users, audit log) and `static/js/management.js`.
+  - Removed legacy unused stylesheets (`static/css/main.css`, `static/css/management.css`, `static/css/neo.css`), verified zero remaining Bootstrap/Tailwind CDN or `bi-*` tag references across templates/JS, verified all 71 unique Lucide icon usages against `lucide.min.js`, and documented the architecture in `FRONTEND_DESIGN.md`, `README.md`, and `ARCHITECTURE.md`.
+- **Frontend Regression Test Suite (`store/test_frontend_redesign.py`)**: Added 4 integration tests asserting Tailwind/Lucide static bundle presence, removal of legacy stylesheets, zero Bootstrap CDN/`data-bs-*`/`bi-*` HTML artifacts, Dark/Light/System switcher markup, PC Builder mode rendering, Management Portal sidebar/drawer, and custom error templates.
+
+### Tests Executed & Results
+- **Tailwind Build**: `.\.venv\Scripts\tailwindcss.exe -i frontend_src/tailwind.css -o static/css/app.min.css --minify` (`tailwindcss v4.3.5`, zero errors)
+- **Full Automated Test Suite**: `.\.venv\Scripts\python.exe -m pytest -v` -> **68 passed in 20.22s (0 failed, 0 skipped)** (`64` existing tests + `4` frontend redesign regression tests).
+- **Django Verification Checks**:
+  - `.\.venv\Scripts\python.exe manage.py check` -> `System check identified no issues (0 silenced).`
+  - `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run` -> `No changes detected`
+  - `.\.venv\Scripts\python.exe manage.py collectstatic --noinput --clear` -> `190 static files copied`.

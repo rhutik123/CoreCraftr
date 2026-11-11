@@ -3,40 +3,46 @@
 {% block title %}Create Account | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center py-4">
-  <div class="col-md-6 col-lg-5">
-    <div class="hh-card p-4">
-      <h3 class="fw-bold text-center mb-3">Create Your Account</h3>
-      <form method="post" action="{% url 'register' %}">
-        {% csrf_token %}
-        {% if form.errors %}
-        <div class="alert alert-danger small">{{ form.errors }}</div>
-        {% endif %}
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Username *</label>
-          {{ form.username }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Full Name</label>
-          {{ form.first_name }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Email Address *</label>
-          {{ form.email }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Password *</label>
-          {{ form.password1 }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Confirm Password *</label>
-          {{ form.password2 }}
-        </div>
-        <button type="submit" class="btn btn-info fw-semibold w-100 mb-3">Create Account</button>
-      </form>
-      <div class="text-center small">
-        Already have an account? <a href="{% url 'login' %}">Sign In</a>
+<div class="mx-auto max-w-lg py-6 sm:py-10">
+  <div class="cc-card p-6 sm:p-8 space-y-6">
+    <div class="text-center space-y-1.5">
+      <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-tech/15 border border-tech/35 text-tech-ink">
+        <i data-lucide="user" class="w-5 h-5"></i>
       </div>
+      <h1 class="text-2xl font-extrabold text-ink">Create Your Account</h1>
+      <p class="text-xs text-muted">Save custom PC configurations and track demo hardware orders.</p>
+    </div>
+
+    <form method="post" action="{% url 'register' %}" class="space-y-4">
+      {% csrf_token %}
+      {% if form.errors %}
+        <div class="cc-alert cc-alert-danger text-xs">{{ form.errors }}</div>
+      {% endif %}
+      <div>
+        <label class="cc-label">Username *</label>
+        {{ form.username }}
+      </div>
+      <div>
+        <label class="cc-label">Full Name</label>
+        {{ form.first_name }}
+      </div>
+      <div>
+        <label class="cc-label">Email Address *</label>
+        {{ form.email }}
+      </div>
+      <div>
+        <label class="cc-label">Password *</label>
+        {{ form.password1 }}
+      </div>
+      <div>
+        <label class="cc-label">Confirm Password *</label>
+        {{ form.password2 }}
+      </div>
+      <button type="submit" class="cc-btn cc-btn-primary cc-btn-lg w-full">Create Account</button>
+    </form>
+
+    <div class="border-t border-border pt-4 text-center text-xs text-muted">
+      Already have an account? <a href="{% url 'login' %}" class="font-semibold text-accent-ink hover:underline">Sign In</a>
     </div>
   </div>
 </div>

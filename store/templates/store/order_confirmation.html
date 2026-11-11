@@ -4,106 +4,115 @@
 {% block title %}Order {{ order.order_number }} Confirmed | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="hh-card p-4 p-md-5 mb-4">
-  <div class="text-center mb-4">
-    <i class="bi bi-check-circle-fill text-success display-4"></i>
-    <h1 class="h3 fw-bold mt-2">Order Confirmed (Demo)</h1>
-    <p class="text-muted mb-1">Order Number: <strong class="text-dark">{{ order.order_number }}</strong></p>
-    <small class="text-muted">Transaction Ref: {{ order.transaction_id }} &bull; {{ order.date_ordered|date:"M d, Y H:i" }}</small>
+<div class="cc-card p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
+  <div class="text-center border-b border-border pb-6">
+    <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/15 border border-green-500/40 text-green-400">
+      <i data-lucide="circle-check" class="w-8 h-8"></i>
+    </div>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-ink">Order Confirmed (Demo)</h1>
+    <p class="text-sm text-muted mt-1">
+      Order Number: <strong class="text-ink cc-mono">{{ order.order_number }}</strong>
+    </p>
+    <p class="text-xs text-muted mt-1 cc-mono">
+      Transaction Ref: {{ order.transaction_id }} &bull; {{ order.date_ordered|date:"M d, Y H:i" }}
+    </p>
   </div>
 
-  <div class="row g-4">
-    <div class="col-md-6">
-      <div class="p-3 bg-light rounded border h-100">
-        <h6 class="fw-bold mb-2">Customer &amp; Payment</h6>
-        <div class="small"><strong>Name:</strong> {{ order.customer_name }}</div>
-        <div class="small"><strong>Email:</strong> {{ order.customer_email }}</div>
-        <div class="small"><strong>Phone:</strong> {{ order.customer_phone }}</div>
-        <div class="small mt-2"><strong>Payment Method:</strong> {{ order.get_payment_method_display }}</div>
-        <div class="small"><strong>Payment Status:</strong> <span class="badge text-bg-info">{{ order.get_payment_status_display }}</span></div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="cc-panel-elevated p-4 space-y-1 text-sm">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-muted mb-2">Customer &amp; Payment</h2>
+      <div><strong class="text-ink">Name:</strong> <span class="text-muted">{{ order.customer_name }}</span></div>
+      <div><strong class="text-ink">Email:</strong> <span class="text-muted">{{ order.customer_email }}</span></div>
+      <div><strong class="text-ink">Phone:</strong> <span class="text-muted cc-mono">{{ order.customer_phone }}</span></div>
+      <div class="pt-2"><strong class="text-ink">Payment Method:</strong> <span class="text-muted">{{ order.get_payment_method_display }}</span></div>
+      <div class="flex items-center gap-2 pt-1">
+        <strong class="text-ink">Payment Status:</strong>
+        <span class="cc-badge cc-badge-tech">{{ order.get_payment_status_display }}</span>
       </div>
     </div>
-    <div class="col-md-6">
-      <div class="p-3 bg-light rounded border h-100">
-        <h6 class="fw-bold mb-2">Delivery Address</h6>
-        {% if shipping_address %}
-        <div class="small">{{ shipping_address.address }}</div>
-        <div class="small">{{ shipping_address.city }}, {{ shipping_address.state }} {{ shipping_address.zipcode }}</div>
-        <div class="small">{{ shipping_address.country }}</div>
-        {% else %}
-        <div class="small text-muted">Digital / No physical shipping required.</div>
-        {% endif %}
-      </div>
+
+    <div class="cc-panel-elevated p-4 space-y-1 text-sm">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-muted mb-2">Delivery Address</h2>
+      {% if shipping_address %}
+        <div class="text-ink">{{ shipping_address.address }}</div>
+        <div class="text-muted">{{ shipping_address.city }}, {{ shipping_address.state }} {{ shipping_address.zipcode }}</div>
+        <div class="text-muted">{{ shipping_address.country }}</div>
+      {% else %}
+        <div class="text-muted">Digital / No physical shipping required.</div>
+      {% endif %}
     </div>
   </div>
 
-  <h5 class="fw-bold mt-4 mb-3">Ordered Items</h5>
-  <div class="table-responsive">
-    <table class="table table-bordered align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Item</th>
-          <th>Unit Price</th>
-          <th>Qty</th>
-          <th>Line Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in items %}
-        <tr>
-          <td>{{ item.product_name_snapshot|default:item.product.name }}</td>
-          <td>{{ item.effective_unit_price|inr }}</td>
-          <td>{{ item.quantity }}</td>
-          <td class="fw-semibold">{{ item.get_total|inr }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <th colspan="3" class="text-end">Subtotal</th>
-          <td>{{ order.subtotal_amount|inr }}</td>
-        </tr>
-        <tr>
-          <th colspan="3" class="text-end">Shipping</th>
-          <td>{% if order.shipping_amount == 0 %}Free{% else %}{{ order.shipping_amount|inr }}{% endif %}</td>
-        </tr>
-        <tr class="table-light">
-          <th colspan="3" class="text-end fs-5">Total</th>
-          <th class="fs-5 text-primary">{{ order.total_amount|inr }}</th>
-        </tr>
-      </tfoot>
-    </table>
+  <div>
+    <h2 class="text-lg font-bold text-ink mb-3">Ordered Items</h2>
+    <div class="cc-table-wrap">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Unit Price</th>
+            <th>Qty</th>
+            <th class="text-right">Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td class="font-medium text-ink">{{ item.product_name_snapshot|default:item.product.name }}</td>
+              <td class="cc-mono text-muted">{{ item.effective_unit_price|inr }}</td>
+              <td class="cc-mono">{{ item.quantity }}</td>
+              <td class="text-right font-bold text-ink cc-mono">{{ item.get_total|inr }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="border-t border-border bg-elevated/40 text-sm">
+          <tr>
+            <th colspan="3" class="px-4 py-2.5 text-right font-semibold text-muted">Subtotal</th>
+            <td class="px-4 py-2.5 text-right cc-mono font-semibold text-ink">{{ order.subtotal_amount|inr }}</td>
+          </tr>
+          <tr>
+            <th colspan="3" class="px-4 py-2.5 text-right font-semibold text-muted">Shipping</th>
+            <td class="px-4 py-2.5 text-right cc-mono font-semibold text-ink">
+              {% if order.shipping_amount == 0 %}Free{% else %}{{ order.shipping_amount|inr }}{% endif %}
+            </td>
+          </tr>
+          <tr class="border-t border-border">
+            <th colspan="3" class="px-4 py-3 text-right text-base font-extrabold text-ink">Total</th>
+            <th class="px-4 py-3 text-right text-lg font-extrabold text-accent-ink cc-mono">{{ order.total_amount|inr }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   </div>
 
   {% if order.compatibility_status and order.compatibility_status != 'not_applicable' %}
-  <div class="alert {% if order.compatibility_status == 'incompatible' %}alert-warning border-danger{% elif order.compatibility_status == 'compatible' %}alert-success{% elif order.compatibility_status == 'warning' %}alert-warning{% else %}alert-secondary{% endif %} mt-3 mb-0 small">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-      <div>
-        <strong>Hardware Compatibility Check at Checkout:</strong>
-        <span class="text-uppercase badge {% if order.compatibility_status == 'incompatible' %}text-bg-danger{% elif order.compatibility_status == 'compatible' %}text-bg-success{% elif order.compatibility_status == 'warning' %}text-bg-warning{% else %}text-bg-secondary{% endif %} ms-1">
-          {{ order.compatibility_status }}
-        </span>
+    <div class="cc-alert {% if order.compatibility_status == 'incompatible' or order.compatibility_status == 'warning' %}cc-alert-warning{% elif order.compatibility_status == 'compatible' %}cc-alert-success{% else %}cc-alert-info{% endif %} flex-col">
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full">
+        <div class="flex items-center gap-2">
+          <strong>Hardware Compatibility Check at Checkout:</strong>
+          <span class="cc-badge cc-badge-{{ order.compatibility_status }} uppercase">{{ order.compatibility_status }}</span>
+        </div>
+        {% if order.incompatibility_acknowledged %}
+          <span class="cc-badge cc-badge-neutral">
+            <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+            <span>Incompatibility Acknowledged by Customer</span>
+          </span>
+        {% endif %}
       </div>
-      {% if order.incompatibility_acknowledged %}
-      <span class="badge text-bg-dark">
-        <i class="bi bi-check2-square me-1"></i>Incompatibility Acknowledged by Customer
-      </span>
+      {% if order.compatibility_summary.issues %}
+        <ul class="text-xs list-disc pl-5 space-y-1 pt-1">
+          {% for issue in order.compatibility_summary.issues %}
+            <li><strong>{{ issue.title }}:</strong> {{ issue.message }}</li>
+          {% endfor %}
+        </ul>
       {% endif %}
     </div>
-    {% if order.compatibility_summary.issues %}
-    <ul class="mb-0 mt-2">
-      {% for issue in order.compatibility_summary.issues %}
-      <li><strong>{{ issue.title }}:</strong> {{ issue.message }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-  </div>
   {% endif %}
 
-  <div class="d-flex justify-content-center gap-2 mt-4">
-    <a href="{% url 'store' %}" class="btn btn-primary">Continue Shopping</a>
+  <div class="flex flex-wrap justify-center gap-3 pt-2">
+    <a href="{% url 'store' %}" class="cc-btn cc-btn-primary cc-btn-sm">Continue Shopping</a>
     {% if request.user.is_authenticated %}
-    <a href="{% url 'order_history' %}" class="btn btn-outline-dark">View Order History</a>
+      <a href="{% url 'order_history' %}" class="cc-btn cc-btn-secondary cc-btn-sm">View Order History</a>
     {% endif %}
   </div>
 </div>

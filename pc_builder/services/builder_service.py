@@ -10,19 +10,19 @@ from pc_builder.services.compatibility import CompatibilityEngine, STATUS_PRIORI
 
 
 SLOT_METADATA = [
-    {'slot': 'cpu', 'label': 'CPU / Processor', 'required': True, 'icon': 'bi-cpu'},
-    {'slot': 'motherboard', 'label': 'Motherboard', 'required': True, 'icon': 'bi-motherboard'},
-    {'slot': 'ram', 'label': 'Memory (RAM)', 'required': True, 'icon': 'bi-memory'},
-    {'slot': 'gpu', 'label': 'Graphics Card (GPU)', 'required': False, 'icon': 'bi-gpu-card'},
-    {'slot': 'storage', 'label': 'Primary Storage', 'required': True, 'icon': 'bi-nvme'},
-    {'slot': 'storage_secondary', 'label': 'Secondary Storage', 'required': False, 'icon': 'bi-device-hdd'},
-    {'slot': 'psu', 'label': 'Power Supply (PSU)', 'required': True, 'icon': 'bi-lightning-charge'},
-    {'slot': 'case', 'label': 'PC Case / Cabinet', 'required': True, 'icon': 'bi-pc'},
-    {'slot': 'cooler', 'label': 'CPU Cooler', 'required': False, 'icon': 'bi-fan'},
-    {'slot': 'case_fan', 'label': 'Additional Cooling / Fans', 'required': False, 'icon': 'bi-wind'},
-    {'slot': 'monitor', 'label': 'Monitor', 'required': False, 'icon': 'bi-display'},
-    {'slot': 'keyboard', 'label': 'Keyboard', 'required': False, 'icon': 'bi-keyboard'},
-    {'slot': 'mouse', 'label': 'Mouse', 'required': False, 'icon': 'bi-mouse'},
+    {'slot': 'cpu', 'label': 'CPU / Processor', 'required': True, 'icon': 'cpu'},
+    {'slot': 'motherboard', 'label': 'Motherboard', 'required': True, 'icon': 'circuit-board'},
+    {'slot': 'ram', 'label': 'Memory (RAM)', 'required': True, 'icon': 'memory-stick'},
+    {'slot': 'gpu', 'label': 'Graphics Card (GPU)', 'required': False, 'icon': 'microchip'},
+    {'slot': 'storage', 'label': 'Primary Storage', 'required': True, 'icon': 'hard-drive'},
+    {'slot': 'storage_secondary', 'label': 'Secondary Storage', 'required': False, 'icon': 'database'},
+    {'slot': 'psu', 'label': 'Power Supply (PSU)', 'required': True, 'icon': 'zap'},
+    {'slot': 'case', 'label': 'PC Case / Cabinet', 'required': True, 'icon': 'pc-case'},
+    {'slot': 'cooler', 'label': 'CPU Cooler', 'required': False, 'icon': 'fan'},
+    {'slot': 'case_fan', 'label': 'Additional Cooling / Fans', 'required': False, 'icon': 'wind'},
+    {'slot': 'monitor', 'label': 'Monitor', 'required': False, 'icon': 'monitor'},
+    {'slot': 'keyboard', 'label': 'Keyboard', 'required': False, 'icon': 'keyboard'},
+    {'slot': 'mouse', 'label': 'Mouse', 'required': False, 'icon': 'mouse'},
 ]
 
 

@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="CoreCraftr Logo Mark">
   <defs>
-    <linearGradient id="ccGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#0284c7"/>
+    <linearGradient id="ccOrange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F47738"/>
+      <stop offset="100%" stop-color="#FF9A52"/>
+    </linearGradient>
+    <linearGradient id="ccBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#62A6F8"/>
+      <stop offset="100%" stop-color="#287DD6"/>
     </linearGradient>
   </defs>
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="#0f172a" stroke="url(#ccGrad)" stroke-width="3"/>
-  <rect x="18" y="18" width="28" height="28" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="2.5"/>
-  <path d="M25 10v8M32 10v8M39 10v8M25 46v8M32 46v8M39 46v8M10 25h8M10 32h8M10 39h8M46 25h8M46 32h8M46 39h8" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="32" cy="32" r="6" fill="url(#ccGrad)"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#10141B" stroke="url(#ccOrange)" stroke-width="3"/>
+  <rect x="18" y="18" width="28" height="28" rx="6" fill="#191F29" stroke="#62A6F8" stroke-width="2.5"/>
+  <path d="M25 10v8M32 10v8M39 10v8M25 46v8M32 46v8M39 46v8M10 25h8M10 32h8M10 39h8M46 25h8M46 32h8M46 39h8" stroke="#62A6F8" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="6" fill="url(#ccOrange)"/>
 </svg>

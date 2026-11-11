@@ -55,27 +55,27 @@ SLOT_LABELS = {
 OVERALL_STATUS_META = {
     STATUS_COMPATIBLE: {
         'headline': 'All verified components are compatible.',
-        'badge_class': 'success',
+        'badge_class': 'compatible',
         'alert_class': 'success',
-        'icon': 'bi-check-circle-fill',
+        'icon': 'circle-check',
     },
     STATUS_INCOMPATIBLE: {
         'headline': 'Incompatible components detected.',
-        'badge_class': 'danger',
+        'badge_class': 'incompatible',
         'alert_class': 'danger',
-        'icon': 'bi-exclamation-octagon-fill',
+        'icon': 'octagon-alert',
     },
     STATUS_WARNING: {
         'headline': 'Compatibility warning.',
         'badge_class': 'warning',
         'alert_class': 'warning',
-        'icon': 'bi-exclamation-triangle-fill',
+        'icon': 'triangle-alert',
     },
     STATUS_UNKNOWN: {
         'headline': 'Some specifications are unknown.',
-        'badge_class': 'secondary',
+        'badge_class': 'unknown',
         'alert_class': 'secondary',
-        'icon': 'bi-question-circle-fill',
+        'icon': 'circle-help',
     },
 }
 
@@ -595,7 +595,7 @@ class CartCompatibilityService:
             headline='Add 2 or more PC hardware components to check build compatibility.',
             badge_class='light',
             alert_class='light',
-            icon='bi-pc-display',
+            icon='pc-case',
             has_incompatibility=False,
             has_warning=False,
             has_unknown=False,

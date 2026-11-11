@@ -4,330 +4,374 @@
 {% block title %}Shopping Cart | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
   <div>
-    <h1 class="h3 fw-bold mb-1">Shopping Cart</h1>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Shopping Cart</h1>
     {% if items %}
-    <p class="text-muted small mb-0">{{ cart.total_items }} item{{ cart.total_items|pluralize }} ready for checkout</p>
+      <p class="text-xs sm:text-sm text-muted mt-1 cc-mono">{{ cart.total_items }} item{{ cart.total_items|pluralize }} ready for checkout</p>
     {% endif %}
   </div>
-  <div class="d-flex gap-2">
-    <a href="{% url 'pc_builder' %}" class="btn btn-outline-info btn-sm fw-semibold">
-      <i class="bi bi-pc-display me-1"></i>PC Builder
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'pc_builder' %}" class="cc-btn cc-btn-tech cc-btn-sm">
+      <i data-lucide="pc-case" class="w-4 h-4"></i><span>PC Builder</span>
     </a>
-    <a href="{% url 'store' %}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Continue Shopping
+    <a href="{% url 'store' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i><span>Continue Shopping</span>
     </a>
   </div>
 </div>
 
 {% if stock_errors %}
-<div class="alert alert-danger shadow-sm" role="alert">
-  <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-circle me-1"></i>Inventory Notice</h6>
-  {% for err in stock_errors %}<div>{{ err }}</div>{% endfor %}
-</div>
+  <div class="cc-alert cc-alert-danger mb-5" role="alert">
+    <div class="space-y-1">
+      <div class="font-bold flex items-center gap-2">
+        <i data-lucide="octagon-alert" class="w-4 h-4"></i>
+        <span>Inventory Notice</span>
+      </div>
+      {% for err in stock_errors %}
+        <div class="text-xs sm:text-sm">{{ err }}</div>
+      {% endfor %}
+    </div>
+  </div>
 {% endif %}
 
 {% if items %}
-<div class="row g-4 align-items-start">
-  <div class="col-lg-8">
-    <!-- Responsive Cart Items -->
-    <div class="hh-card p-3 p-md-4 mb-4">
-      <div class="d-none d-md-flex row fw-semibold small text-muted border-bottom pb-2 mb-3">
-        <div class="col-md-6">Hardware Item</div>
-        <div class="col-md-2">Unit Price</div>
-        <div class="col-md-2 text-center">Qty</div>
-        <div class="col-md-2 text-end">Subtotal</div>
-      </div>
-
-      {% for item in items %}
-      <div class="row g-3 align-items-center {% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}">
-        <div class="col-12 col-md-6">
-          <div class="d-flex align-items-center gap-3">
-            <a href="{% url 'detail' item.product.id %}" class="flex-shrink-0">
-              <img src="{{ item.product.imageURL }}" alt="{{ item.product.name }}" class="hh-thumb-md">
-            </a>
-            <div class="min-w-0">
-              <div class="small text-muted mb-1">{{ item.product.category.name }} &middot; {{ item.product.brand.name }}</div>
-              <a href="{% url 'detail' item.product.id %}" class="fw-semibold text-decoration-none text-dark d-block mb-1">
-                {{ item.product.name }}
-              </a>
-              <div class="d-flex flex-wrap gap-1 align-items-center">
-                {% if item.product.stock_quantity > 5 %}
-                <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">{{ item.product.inventory.stock_status_label }}</span>
-                {% elif item.product.stock_quantity > 0 %}
-                <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">{{ item.product.inventory.stock_status_label }}</span>
-                {% else %}
-                <span class="badge text-bg-danger">Out of Stock</span>
-                {% endif %}
-                {% if item.source_build %}
-                <span class="badge text-bg-info">From PC Build</span>
-                {% endif %}
-              </div>
-            </div>
-          </div>
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- Left Column: Cart Lines + Compatibility Engine Check -->
+    <div class="lg:col-span-8 space-y-6">
+      <div class="cc-card p-4 sm:p-6">
+        <div class="hidden md:grid md:grid-cols-12 gap-4 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-border pb-3 mb-4">
+          <div class="md:col-span-6">Hardware Item</div>
+          <div class="md:col-span-2">Unit Price</div>
+          <div class="md:col-span-2 text-center">Qty</div>
+          <div class="md:col-span-2 text-right">Subtotal</div>
         </div>
 
-        <div class="col-4 col-md-2">
-          <span class="d-md-none small text-muted d-block">Unit Price</span>
-          <span class="fw-medium">{{ item.product.price|inr }}</span>
-        </div>
-
-        <div class="col-4 col-md-2 text-md-center">
-          <span class="d-md-none small text-muted d-block">Qty</span>
-          <div class="btn-group btn-group-sm" role="group" aria-label="Quantity controls">
-            <button type="button" class="btn btn-outline-secondary update-cart" data-product="{{ item.product.id }}" data-action="remove" data-reload="true" aria-label="Decrease quantity">-</button>
-            <span class="btn btn-light disabled fw-bold text-dark">{{ item.quantity }}</span>
-            <button type="button" class="btn btn-outline-secondary update-cart" data-product="{{ item.product.id }}" data-action="add" data-reload="true" aria-label="Increase quantity">+</button>
-          </div>
-        </div>
-
-        <div class="col-4 col-md-2 text-end">
-          <span class="d-md-none small text-muted d-block">Total</span>
-          <div class="fw-bold">{{ item.line_total|inr }}</div>
-          <button type="button" class="btn btn-link btn-sm text-danger text-decoration-none p-0 mt-1 update-cart" data-product="{{ item.product.id }}" data-action="delete" data-reload="true" title="Remove item">
-            <i class="bi bi-trash me-1"></i>Remove
-          </button>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-
-    <!-- Dedicated Cart Compatibility Check -->
-    {% if compat.is_applicable %}
-    <section id="cart-compatibility-check" class="hh-card hh-compat-panel border-2 {% if compat.has_incompatibility %}border-danger{% elif compat.has_warning %}border-warning{% elif compat.has_unknown %}border-secondary{% else %}border-success{% endif %} p-3 p-md-4 mb-4">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom pb-3 mb-3">
-        <div>
-          <span class="text-uppercase small fw-bold text-muted d-block mb-1">Deterministic Hardware Verification</span>
-          <h2 class="h5 fw-bold mb-0">PC BUILD COMPATIBILITY CHECK</h2>
-        </div>
-        <span class="badge text-bg-{{ compat.badge_class }} fs-6 py-2 px-3">
-          <i class="bi {{ compat.icon }} me-1"></i>{{ compat.headline }}
-        </span>
-      </div>
-
-      {% if compat.selection_scope_note %}
-      <p class="small text-muted mb-3">{{ compat.selection_scope_note }}</p>
-      {% endif %}
-
-      {% if compat.ambiguity_notes %}
-      <div class="alert alert-light border small py-2 px-3 mb-3">
-        <div class="fw-semibold mb-1"><i class="bi bi-info-circle me-1"></i>Cart Scope Notes</div>
-        {% for note in compat.ambiguity_notes %}
-        <div>{{ note }}</div>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-        {% for comp in compat.evaluated_components %}
-        <span class="badge text-bg-light border text-dark py-2 px-2">
-          <span class="text-muted">{{ comp.slot_label }}:</span> {{ comp.product.name }}
-        </span>
-        {% endfor %}
-        {% if compat.estimated_wattage %}
-        <span class="badge text-bg-dark py-2 px-2">
-          <i class="bi bi-lightning-charge me-1"></i>Est. Load: {{ compat.estimated_wattage }}W (Rec. PSU: {{ compat.recommended_psu_wattage }}W+)
-        </span>
-        {% endif %}
-      </div>
-
-      {% if compat.advisor_summary %}
-      <div class="alert alert-info-subtle bg-light border mb-3 py-2 px-3 small">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
-          <span class="fw-bold text-dark"><i class="bi bi-stars me-1 text-info"></i>Upgrade Advisor Summary</span>
-          <span class="badge text-bg-secondary">{{ compat.advisor_source_label }}</span>
-        </div>
-        <div class="text-dark">{{ compat.advisor_summary }}</div>
-        {% if compat.advisor_notice %}
-        <div class="text-muted mt-1">{{ compat.advisor_notice }}</div>
-        {% endif %}
-      </div>
-      {% endif %}
-
-      {% if compat.is_all_compatible %}
-      <div class="alert alert-success mb-0">
-        <i class="bi bi-check-circle-fill me-2"></i>
-        <strong>Verified:</strong> Socket, memory type, form factor, clearances, and power requirements match across all verified components in this selection.
-      </div>
-      {% else %}
-      <div class="d-flex flex-column gap-3">
-        {% for issue in compat.detailed_issues %}
-        <div class="border rounded-3 p-3 {% if issue.status == 'incompatible' %}border-danger bg-danger-subtle bg-opacity-25{% elif issue.status == 'warning' %}border-warning bg-warning-subtle bg-opacity-25{% else %}border-secondary bg-light{% endif %}">
-          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
-            <div>
-              <h3 class="h6 fw-bold mb-1">
-                {% if issue.status == 'incompatible' %}
-                <i class="bi bi-x-octagon-fill text-danger me-1"></i>
-                {% elif issue.status == 'warning' %}
-                <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
-                {% else %}
-                <i class="bi bi-question-circle-fill text-secondary me-1"></i>
-                {% endif %}
-                {{ issue.heading }}
-              </h3>
-              <p class="small mb-0 text-dark">{{ issue.message }}</p>
-            </div>
-            <span class="badge text-bg-dark text-uppercase">{{ issue.rule_code }}</span>
-          </div>
-
-          {% if issue.involved_components %}
-          <div class="row g-2 my-2">
-            {% for comp in issue.involved_components %}
-            <div class="col-md-6">
-              <div class="bg-white border rounded p-2 h-100">
-                <div class="small text-muted">{{ comp.slot_label }}</div>
-                <a href="{% url 'detail' comp.product.id %}" class="fw-semibold text-decoration-none text-dark d-block mb-1">{{ comp.product.name }}</a>
-                <ul class="small text-muted mb-0 ps-3">
-                  {% for bullet in comp.spec_bullets %}
-                  <li>{{ bullet }}</li>
-                  {% endfor %}
-                </ul>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% endif %}
-
-          <div class="row g-2 my-2 small">
-            <div class="col-md-6">
-              <div class="bg-white border rounded p-2 h-100">
-                <span class="badge text-bg-info mb-1">Beginner Guide</span>
-                <p class="mb-0 text-dark">{{ issue.beginner_explanation }}</p>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="bg-white border rounded p-2 h-100">
-                <span class="badge text-bg-secondary mb-1">Expert Spec Detail</span>
-                <p class="mb-0 text-dark">{{ issue.expert_explanation }}</p>
-              </div>
-            </div>
-          </div>
-
-          {% if issue.fix_directions %}
-          <div class="mt-3">
-            <div class="small fw-bold text-uppercase text-muted mb-2">Suggested Ways to Fix (Database-Verified &amp; Compatibility-Checked)</div>
-            <div class="row g-3">
-              {% for dir in issue.fix_directions %}
-              <div class="col-md-6">
-                <div class="hh-compat-direction bg-white border rounded p-3 h-100">
-                  <div class="fw-bold small mb-1">{{ dir.title }}</div>
-                  {% if dir.tip %}
-                  <p class="small text-muted mb-2">{{ dir.tip }}</p>
-                  {% endif %}
-                  {% if dir.replacements %}
-                  <div class="d-flex flex-column gap-2">
-                    {% for rep in dir.replacements %}
-                    <div class="border rounded p-2 bg-light">
-                      <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div>
-                          <a href="{% url 'detail' rep.product.id %}" class="fw-semibold small text-decoration-none text-dark">{{ rep.product.name }}</a>
-                          <div class="small text-muted">{{ rep.spec_summary }}</div>
-                        </div>
-                        <div class="text-end flex-shrink-0">
-                          <div class="fw-bold small">{{ rep.price_inr }}</div>
-                          {% if rep.price_diff_inr %}
-                          <div class="small text-muted">{{ rep.price_diff_inr }}</div>
-                          {% endif %}
-                        </div>
-                      </div>
-                      {% if rep.reason %}
-                      <div class="small text-success mt-1"><i class="bi bi-check2 me-1"></i>{{ rep.reason }}</div>
-                      {% endif %}
-                      <div class="mt-2 d-flex justify-content-between align-items-center">
-                        <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">Verified Compatible</span>
-                        <form method="post" action="{% url 'swap_cart_item' %}" class="d-inline">
-                          {% csrf_token %}
-                          <input type="hidden" name="remove_product_id" value="{{ dir.remove_product.id|default:'' }}">
-                          <input type="hidden" name="add_product_id" value="{{ rep.product.id }}">
-                          <button type="submit" class="btn btn-sm btn-primary">
-                            {% if dir.action_type == 'add' %}Add to Cart{% else %}Swap in Cart{% endif %}
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                    {% endfor %}
+        <div class="divide-y divide-border/70">
+          {% for item in items %}
+            <div class="py-4 first:pt-0 last:pb-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <div class="md:col-span-6 flex items-center gap-3.5">
+                <a href="{% url 'detail' item.product.id %}" class="cc-product-frame h-16 w-16 shrink-0 rounded-xl border border-border p-1.5 flex items-center justify-center overflow-hidden">
+                  <img src="{{ item.product.imageURL }}" alt="{{ item.product.name }}" class="max-h-full max-w-full object-contain">
+                </a>
+                <div class="min-w-0">
+                  <div class="text-[11px] text-muted mb-0.5">{{ item.product.category.name }} &middot; {{ item.product.brand.name|default:"Hardware" }}</div>
+                  <a href="{% url 'detail' item.product.id %}" class="block text-sm font-bold text-ink hover:text-accent-ink transition-colors truncate">{{ item.product.name }}</a>
+                  <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    {% if item.product.stock_quantity > 5 %}
+                      <span class="cc-badge cc-badge-compatible text-[10px]">{{ item.product.inventory.stock_status_label }}</span>
+                    {% elif item.product.stock_quantity > 0 %}
+                      <span class="cc-badge cc-badge-warning text-[10px]">{{ item.product.inventory.stock_status_label }}</span>
+                    {% else %}
+                      <span class="cc-badge cc-badge-incompatible text-[10px]">Out of Stock</span>
+                    {% endif %}
+                    {% if item.source_build %}
+                      <span class="cc-badge cc-badge-tech text-[10px]">From PC Build</span>
+                    {% endif %}
                   </div>
-                  {% else %}
-                  <p class="small text-muted mb-0">No verified in-stock replacement matched right now. Browse the catalog or PC Builder for more options.</p>
-                  {% endif %}
                 </div>
               </div>
+
+              <div class="md:col-span-2 flex items-center justify-between md:block">
+                <span class="md:hidden text-xs text-muted">Unit Price</span>
+                <span class="text-sm font-semibold text-ink cc-mono">{{ item.product.price|inr }}</span>
+              </div>
+
+              <div class="md:col-span-2 flex items-center justify-between md:justify-center">
+                <span class="md:hidden text-xs text-muted">Quantity</span>
+                <div class="inline-flex items-center rounded-xl border border-border bg-elevated overflow-hidden" role="group" aria-label="Quantity controls">
+                  <button type="button" class="px-2.5 py-1.5 text-ink hover:bg-hover transition-colors cursor-pointer update-cart" data-product="{{ item.product.id }}" data-action="remove" data-reload="true" aria-label="Decrease quantity">
+                    <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <span class="px-3 py-1 text-xs font-bold text-ink cc-mono select-none">{{ item.quantity }}</span>
+                  <button type="button" class="px-2.5 py-1.5 text-ink hover:bg-hover transition-colors cursor-pointer update-cart" data-product="{{ item.product.id }}" data-action="add" data-reload="true" aria-label="Increase quantity">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="md:col-span-2 flex items-center justify-between md:block md:text-right">
+                <span class="md:hidden text-xs text-muted">Subtotal</span>
+                <div>
+                  <div class="text-sm font-extrabold text-ink cc-mono">{{ item.line_total|inr }}</div>
+                  <button type="button" class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer update-cart" data-product="{{ item.product.id }}" data-action="delete" data-reload="true" title="Remove item">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Remove</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Dedicated Cart Compatibility Check -->
+      {% if compat.is_applicable %}
+        <section id="cart-compatibility-check" class="cc-card p-5 sm:p-6 border-2 {% if compat.has_incompatibility %}border-red-500/60{% elif compat.has_warning %}border-amber-500/60{% elif compat.has_unknown %}border-border{% else %}border-green-500/60{% endif %}">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 mb-4">
+            <div>
+              <span class="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">Deterministic Hardware Verification</span>
+              <h2 class="text-lg sm:text-xl font-extrabold text-ink">PC BUILD COMPATIBILITY CHECK</h2>
+            </div>
+            <span class="cc-badge cc-badge-{{ compat.badge_class }} px-3.5 py-1.5 text-xs sm:text-sm font-bold">
+              <i data-lucide="{{ compat.icon|lucide_icon:'circle-help' }}" class="w-4 h-4"></i>
+              <span>{{ compat.headline }}</span>
+            </span>
+          </div>
+
+          {% if compat.selection_scope_note %}
+            <p class="text-xs sm:text-sm text-muted mb-3">{{ compat.selection_scope_note }}</p>
+          {% endif %}
+
+          {% if compat.ambiguity_notes %}
+            <div class="cc-panel-elevated p-3 mb-4 text-xs text-muted space-y-1">
+              <div class="font-bold text-ink flex items-center gap-1.5">
+                <i data-lucide="info" class="w-3.5 h-3.5 text-tech-ink"></i>
+                <span>Cart Scope Notes</span>
+              </div>
+              {% for note in compat.ambiguity_notes %}
+                <div>{{ note }}</div>
               {% endfor %}
             </div>
-          </div>
           {% endif %}
+
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            {% for comp in compat.evaluated_components %}
+              <span class="cc-badge cc-badge-neutral py-1 px-2.5 text-xs">
+                <span class="text-muted mr-1">{{ comp.slot_label }}:</span>
+                <span class="text-ink font-semibold">{{ comp.product.name }}</span>
+              </span>
+            {% endfor %}
+            {% if compat.estimated_wattage %}
+              <span class="cc-badge cc-badge-tech py-1 px-2.5 text-xs cc-mono">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                <span>Est. Load: {{ compat.estimated_wattage }}W (Rec. PSU: {{ compat.recommended_psu_wattage }}W+)</span>
+              </span>
+            {% endif %}
+          </div>
+
+          {% if compat.advisor_summary %}
+            <div class="cc-panel-elevated p-3.5 mb-4 text-xs sm:text-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <span class="font-bold text-ink flex items-center gap-1.5">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-tech-ink"></i>
+                  <span>Upgrade Advisor Summary</span>
+                </span>
+                <span class="cc-badge cc-badge-neutral text-[10px]">{{ compat.advisor_source_label }}</span>
+              </div>
+              <p class="text-ink/90 leading-relaxed">{{ compat.advisor_summary }}</p>
+              {% if compat.advisor_notice %}
+                <p class="text-xs text-muted mt-1">{{ compat.advisor_notice }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if compat.is_all_compatible %}
+            <div class="cc-alert cc-alert-success">
+              <div class="flex items-start gap-2.5">
+                <i data-lucide="circle-check" class="w-5 h-5 shrink-0"></i>
+                <div>
+                  <strong>Verified:</strong> Socket, memory type, form factor, clearances, and power requirements match across all verified components in this selection.
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="space-y-4">
+              {% for issue in compat.detailed_issues %}
+                <div class="rounded-2xl border p-4 {% if issue.status == 'incompatible' %}cc-status-incompatible{% elif issue.status == 'warning' %}cc-status-warning{% else %}cc-status-unknown{% endif %}">
+                  <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+                    <div>
+                      <h3 class="text-sm sm:text-base font-bold flex items-center gap-2 mb-1">
+                        {% if issue.status == 'incompatible' %}
+                          <i data-lucide="octagon-alert" class="w-4 h-4 shrink-0"></i>
+                        {% elif issue.status == 'warning' %}
+                          <i data-lucide="triangle-alert" class="w-4 h-4 shrink-0"></i>
+                        {% else %}
+                          <i data-lucide="circle-help" class="w-4 h-4 shrink-0"></i>
+                        {% endif %}
+                        <span>{{ issue.heading }}</span>
+                      </h3>
+                      <p class="text-xs sm:text-sm text-ink/90">{{ issue.message }}</p>
+                    </div>
+                    <span class="cc-badge cc-badge-neutral cc-mono uppercase text-[10px]">{{ issue.rule_code }}</span>
+                  </div>
+
+                  {% if issue.involved_components %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 my-3">
+                      {% for comp in issue.involved_components %}
+                        <div class="rounded-xl border border-border bg-surface p-3 text-ink">
+                          <div class="text-[11px] font-semibold text-muted">{{ comp.slot_label }}</div>
+                          <a href="{% url 'detail' comp.product.id %}" class="block text-xs sm:text-sm font-bold text-ink hover:text-accent-ink mb-1.5">{{ comp.product.name }}</a>
+                          <ul class="space-y-0.5 text-xs text-muted list-disc pl-4">
+                            {% for bullet in comp.spec_bullets %}
+                              <li>{{ bullet }}</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 my-3 text-xs">
+                    <div class="rounded-xl border border-border bg-surface p-3 text-ink">
+                      <span class="cc-badge cc-badge-tech mb-1.5">Beginner Guide</span>
+                      <p class="text-muted leading-relaxed">{{ issue.beginner_explanation }}</p>
+                    </div>
+                    <div class="rounded-xl border border-border bg-surface p-3 text-ink">
+                      <span class="cc-badge cc-badge-neutral mb-1.5">Expert Spec Detail</span>
+                      <p class="text-muted leading-relaxed">{{ issue.expert_explanation }}</p>
+                    </div>
+                  </div>
+
+                  {% if issue.fix_directions %}
+                    <div class="mt-4 pt-3 border-t border-border/60">
+                      <div class="text-[11px] font-extrabold uppercase tracking-wider text-ink mb-2.5">
+                        Suggested Ways to Fix (Database-Verified &amp; Compatibility-Checked)
+                      </div>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {% for dir in issue.fix_directions %}
+                          <div class="rounded-xl border border-border bg-surface p-3.5 text-ink space-y-2.5">
+                            <div class="text-xs sm:text-sm font-bold">{{ dir.title }}</div>
+                            {% if dir.tip %}
+                              <p class="text-xs text-muted">{{ dir.tip }}</p>
+                            {% endif %}
+                            {% if dir.replacements %}
+                              <div class="space-y-2">
+                                {% for rep in dir.replacements %}
+                                  <div class="rounded-xl border border-border bg-elevated p-2.5">
+                                    <div class="flex items-start justify-between gap-2">
+                                      <div class="min-w-0">
+                                        <a href="{% url 'detail' rep.product.id %}" class="block text-xs font-bold text-ink hover:text-accent-ink truncate">{{ rep.product.name }}</a>
+                                        <div class="text-[11px] text-muted truncate">{{ rep.spec_summary }}</div>
+                                      </div>
+                                      <div class="text-right shrink-0">
+                                        <div class="text-xs font-bold text-ink cc-mono">{{ rep.price_inr }}</div>
+                                        {% if rep.price_diff_inr %}
+                                          <div class="text-[10px] text-muted cc-mono">{{ rep.price_diff_inr }}</div>
+                                        {% endif %}
+                                      </div>
+                                    </div>
+                                    {% if rep.reason %}
+                                      <div class="mt-1.5 flex items-center gap-1 text-[11px] text-green-400">
+                                        <i data-lucide="check" class="w-3 h-3"></i>
+                                        <span>{{ rep.reason }}</span>
+                                      </div>
+                                    {% endif %}
+                                    <div class="mt-2 flex items-center justify-between gap-2">
+                                      <span class="cc-badge cc-badge-compatible text-[10px]">Verified Compatible</span>
+                                      <form method="post" action="{% url 'swap_cart_item' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="remove_product_id" value="{{ dir.remove_product.id|default:'' }}">
+                                        <input type="hidden" name="add_product_id" value="{{ rep.product.id }}">
+                                        <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm py-1 px-2.5 text-[11px]">
+                                          {% if dir.action_type == 'add' %}Add to Cart{% else %}Swap in Cart{% endif %}
+                                        </button>
+                                      </form>
+                                    </div>
+                                  </div>
+                                {% endfor %}
+                              </div>
+                            {% else %}
+                              <p class="text-xs text-muted">No verified in-stock replacement matched right now. Browse the catalog or PC Builder for more options.</p>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="mt-4 flex items-center gap-2 text-xs text-muted">
+              <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-tech-ink"></i>
+              <span>Your purchase is never blocked — you can swap parts above or continue to checkout and confirm your selection there.</span>
+            </div>
+          {% endif %}
+        </section>
+      {% endif %}
+    </div>
+
+    <!-- Right Column: Sticky Order Summary -->
+    <div class="lg:col-span-4 lg:sticky lg:top-20">
+      <div class="cc-card p-5 sm:p-6 space-y-4">
+        <h2 class="text-lg font-extrabold text-ink border-b border-border pb-3">Order Summary</h2>
+
+        <div class="space-y-2.5 text-sm">
+          <div class="flex justify-between">
+            <span class="text-muted">Items ({{ cart.total_items }})</span>
+            <span class="font-semibold text-ink cc-mono">{{ subtotal|inr }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-muted">Shipping</span>
+            <span>
+              {% if shipping_fee == 0 %}
+                <span class="font-bold text-green-400">Free</span>
+              {% else %}
+                <span class="font-semibold text-ink cc-mono">{{ shipping_fee|inr }}</span>
+              {% endif %}
+            </span>
+          </div>
         </div>
-        {% endfor %}
-      </div>
 
-      <div class="small text-muted mt-3 mb-0">
-        <i class="bi bi-shield-check me-1"></i>
-        Your purchase is never blocked — you can swap parts above or continue to checkout and confirm your selection there.
-      </div>
-      {% endif %}
-    </section>
-    {% endif %}
-  </div>
-
-  <!-- Sticky Order Summary -->
-  <div class="col-lg-4">
-    <div class="hh-card p-4 position-sticky" style="top: 5.5rem;">
-      <h5 class="fw-bold mb-3">Order Summary</h5>
-      <div class="d-flex justify-content-between mb-2">
-        <span class="text-muted">Items ({{ cart.total_items }})</span>
-        <span>{{ subtotal|inr }}</span>
-      </div>
-      <div class="d-flex justify-content-between mb-2">
-        <span class="text-muted">Shipping</span>
-        <span>{% if shipping_fee == 0 %}<span class="text-success fw-semibold">Free</span>{% else %}{{ shipping_fee|inr }}{% endif %}</span>
-      </div>
-
-      {% if requires_shipping %}
-      <div class="small bg-light rounded p-2 mb-3">
-        {% if free_shipping_gap == 0 %}
-        <span class="text-success fw-semibold"><i class="bi bi-truck me-1"></i>Your order qualifies for FREE shipping!</span>
-        {% else %}
-        <span class="text-muted"><i class="bi bi-truck me-1"></i>Add {{ free_shipping_gap|inr }} more for free shipping (above {{ free_shipping_threshold|inr_whole }}).</span>
+        {% if requires_shipping %}
+          <div class="cc-panel-elevated p-3 text-xs">
+            {% if free_shipping_gap == 0 %}
+              <div class="flex items-center gap-2 font-semibold text-green-400">
+                <i data-lucide="truck" class="w-4 h-4 shrink-0"></i>
+                <span>Your order qualifies for FREE shipping!</span>
+              </div>
+            {% else %}
+              <div class="flex items-start gap-2 text-muted">
+                <i data-lucide="truck" class="w-4 h-4 shrink-0 mt-0.5 text-tech-ink"></i>
+                <span>Add <span class="font-bold text-ink cc-mono">{{ free_shipping_gap|inr }}</span> more for free shipping (above {{ free_shipping_threshold|inr_whole }}).</span>
+              </div>
+            {% endif %}
+          </div>
         {% endif %}
-      </div>
-      {% endif %}
 
-      {% if compat.is_applicable %}
-      <div class="alert alert-{{ compat.alert_class }} py-2 px-3 small mb-3">
-        <div class="fw-semibold"><i class="bi {{ compat.icon }} me-1"></i>{{ compat.headline }}</div>
-        {% if compat.has_incompatibility %}
-        <div class="mt-1">Review the warning on the left, or proceed to checkout if purchasing separately.</div>
+        {% if compat.is_applicable %}
+          <div class="cc-alert cc-alert-{{ compat.alert_class }} text-xs py-2.5 px-3">
+            <div class="space-y-1">
+              <div class="font-bold flex items-center gap-1.5">
+                <i data-lucide="{{ compat.icon|lucide_icon:'circle-help' }}" class="w-4 h-4 shrink-0"></i>
+                <span>{{ compat.headline }}</span>
+              </div>
+              {% if compat.has_incompatibility %}
+                <div class="opacity-90">Review the warning on the left, or proceed to checkout if purchasing separately.</div>
+              {% endif %}
+            </div>
+          </div>
         {% endif %}
-      </div>
-      {% endif %}
 
-      <hr>
-      <div class="d-flex justify-content-between fs-5 fw-bold mb-4">
-        <span>Estimated Total</span>
-        <span>{{ estimated_total|inr }}</span>
+        <div class="border-t border-border pt-4 flex items-baseline justify-between">
+          <span class="text-sm font-bold text-muted uppercase tracking-wider">Estimated Total</span>
+          <span class="text-2xl font-extrabold text-ink cc-mono">{{ estimated_total|inr }}</span>
+        </div>
+
+        <a href="{% url 'checkout' %}" class="cc-btn cc-btn-primary cc-btn-lg w-full {% if stock_errors %}pointer-events-none opacity-45{% endif %}">
+          <span>Proceed to Checkout</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
       </div>
-      <a href="{% url 'checkout' %}" class="btn btn-success btn-lg w-100 {% if stock_errors %}disabled{% endif %}">
-        Proceed to Checkout <i class="bi bi-arrow-right ms-1"></i>
-      </a>
     </div>
   </div>
-</div>
 {% else %}
-<div class="hh-card p-5 text-center">
-  <i class="bi bi-cart-x fs-1 text-muted mb-2 d-block"></i>
-  <h2 class="h5 fw-bold">Your shopping cart is empty</h2>
-  <p class="text-muted small mb-4">Explore genuine computer components or let the intelligent PC Builder pick balanced parts for your budget.</p>
-  <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
-    <a href="{% url 'store' %}" class="btn btn-primary btn-sm">Browse All Hardware</a>
-    <a href="{% url 'pc_builder' %}" class="btn btn-info btn-sm fw-semibold">Open PC Builder</a>
+  <div class="cc-card p-10 sm:p-14 text-center max-w-2xl mx-auto">
+    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-elevated border border-border text-muted">
+      <i data-lucide="shopping-cart" class="w-7 h-7"></i>
+    </div>
+    <h2 class="text-xl font-bold text-ink mb-2">Your shopping cart is empty</h2>
+    <p class="text-sm text-muted mb-6">Explore genuine computer components or let the intelligent PC Builder pick balanced parts for your budget.</p>
+    <div class="flex flex-wrap justify-center gap-2.5 mb-6">
+      <a href="{% url 'store' %}" class="cc-btn cc-btn-primary cc-btn-sm">Browse All Hardware</a>
+      <a href="{% url 'pc_builder' %}" class="cc-btn cc-btn-tech cc-btn-sm">Open PC Builder</a>
+    </div>
+    <div class="flex flex-wrap justify-center gap-2">
+      <a href="{% url 'category_detail' 'cpu' %}" class="cc-badge cc-badge-neutral px-3 py-1.5 hover:border-accent">CPUs</a>
+      <a href="{% url 'category_detail' 'gpu' %}" class="cc-badge cc-badge-neutral px-3 py-1.5 hover:border-accent">Graphics Cards</a>
+      <a href="{% url 'category_detail' 'motherboard' %}" class="cc-badge cc-badge-neutral px-3 py-1.5 hover:border-accent">Motherboards</a>
+      <a href="{% url 'category_detail' 'ram' %}" class="cc-badge cc-badge-neutral px-3 py-1.5 hover:border-accent">RAM</a>
+    </div>
   </div>
-  <div class="d-flex flex-wrap justify-content-center gap-2 small">
-    <a href="{% url 'category_detail' 'cpu' %}" class="badge rounded-pill text-bg-light border text-decoration-none text-dark px-3 py-2">CPUs</a>
-    <a href="{% url 'category_detail' 'gpu' %}" class="badge rounded-pill text-bg-light border text-decoration-none text-dark px-3 py-2">Graphics Cards</a>
-    <a href="{% url 'category_detail' 'motherboard' %}" class="badge rounded-pill text-bg-light border text-decoration-none text-dark px-3 py-2">Motherboards</a>
-    <a href="{% url 'category_detail' 'ram' %}" class="badge rounded-pill text-bg-light border text-decoration-none text-dark px-3 py-2">RAM</a>
-  </div>
-</div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,28 @@
+{% if page_obj.has_other_pages %}
+  <nav class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-sm" aria-label="Pagination">
+    <div class="text-xs text-muted cc-mono">
+      Page <span class="font-semibold text-ink">{{ page_obj.number }}</span> of <span class="font-semibold text-ink">{{ page_obj.paginator.num_pages }}</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      {% if page_obj.has_previous %}
+        <a href="?{% if query_prefix %}{{ query_prefix }}&{% endif %}page={{ page_obj.previous_page_number }}" class="cc-btn cc-btn-secondary cc-btn-sm">
+          <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+          <span>Previous</span>
+        </a>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+          <span class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-accent px-2.5 text-xs font-bold text-on-accent cc-mono">{{ num }}</span>
+        {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+          <a href="?{% if query_prefix %}{{ query_prefix }}&{% endif %}page={{ num }}" class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-border bg-elevated px-2.5 text-xs font-medium text-ink hover:border-accent cc-mono transition-colors">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?{% if query_prefix %}{{ query_prefix }}&{% endif %}page={{ page_obj.next_page_number }}" class="cc-btn cc-btn-secondary cc-btn-sm">
+          <span>Next</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+        </a>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}

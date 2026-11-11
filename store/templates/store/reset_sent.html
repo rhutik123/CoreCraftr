@@ -3,14 +3,16 @@
 {% block title %}Reset Email Sent | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center py-4">
-  <div class="col-md-6">
-    <div class="hh-card p-4 text-center">
-      <i class="bi bi-envelope-check fs-1 text-success mb-2 d-block"></i>
-      <h4 class="fw-bold">Check Your Email</h4>
-      <p class="text-muted small">If an account matches the email address provided, a password reset link has been sent (or logged to console in local development mode).</p>
-      <a href="{% url 'login' %}" class="btn btn-primary btn-sm">Return to Sign In</a>
+<div class="mx-auto max-w-md py-8 sm:py-12">
+  <div class="cc-card p-8 text-center space-y-4">
+    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500/15 border border-green-500/35 text-green-400">
+      <i data-lucide="mail-check" class="w-6 h-6"></i>
     </div>
+    <h1 class="text-xl font-extrabold text-ink">Check Your Email</h1>
+    <p class="text-xs sm:text-sm text-muted leading-relaxed">
+      If an account matches the email address provided, a password reset link has been sent (or logged to console in local development mode).
+    </p>
+    <a href="{% url 'login' %}" class="cc-btn cc-btn-primary cc-btn-sm">Return to Sign In</a>
   </div>
 </div>
 {% endblock %}

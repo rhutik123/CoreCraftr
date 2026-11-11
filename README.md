@@ -38,7 +38,7 @@ Checks cover CPU <-> Motherboard (socket, `ChipsetCPUSupport` matrix, `Motherboa
 - **Graceful Fallback**: When `AI_PROVIDER=none`, an API key is missing, or the AI proposes invalid/incompatible hardware, `DeterministicBuildRecommender` and deterministic alternatives run seamlessly with transparent status notices.
 
 ### 5. Owner & Inventory Management Portal (`management`)
-- **Dedicated Staff Workspace (`/management/`)**: Bootstrap 5 sidebar portal separated from customer navigation, with server-enforced RBAC: **Owner** (Django superuser) holds full control including staff role administration and immutable audit logs, while **Inventory Manager** (Django `Inventory Manager` group) manages catalog, media, specs, stock, CSVs, and reports without access to `/management/users/`, `/management/audit/`, or `/admin/`.
+- **Dedicated Staff Workspace (`/management/`)**: Responsive Tailwind CSS sidebar portal separated from customer navigation, with server-enforced RBAC: **Owner** (Django superuser) holds full control including staff role administration and immutable audit logs, while **Inventory Manager** (Django `Inventory Manager` group) manages catalog, media, specs, stock, CSVs, and reports without access to `/management/users/`, `/management/audit/`, or `/admin/`.
 - **Product, Media & Spec Studio**: Full SKU uniqueness enforcement, non-blocking duplicate product warnings, Draft/Published/Archived lifecycle synchronized cleanly with public availability, Pillow binary-verified gallery uploads (`JPEG`/`PNG`/`WEBP`, size capped), dynamic category-aligned compatibility spec forms (`management.spec_schemas`), custom specs, and live storefront preview.
 - **AI Product Specification Research (`ai_engine.services.spec_researcher`)**: Rate-limited schema-constrained spec research with optional web search provider support (`tavily` / `serper` / `google_cse`), manufacturer vs third-party source attribution, explicit conflict/missing spec warnings, forbidden commercial key stripping, mandatory human approval before saving, and clean manual fallback when unconfigured.
 - **Atomic Inventory, CSV Import/Export & Valuation**: Row-locked (`select_for_update`) stock adjustments with optimistic concurrency checks and negative/reserved stock guards, automatic `StockMovement` deductions on customer checkout, `PriceChangeLog` tracking with isolated order history, two-step preview -> confirm CSV importer, valuation strictly over SKUs with verified `cost_price`, and append-only immutable `AuditLog`.
@@ -48,7 +48,7 @@ Checks cover CPU <-> Motherboard (socket, `ChipsetCPUSupport` matrix, `Motherboa
 ## Technology Stack
 - **Backend**: Python, Django 5.2 (`corecraftr` project package; modular apps `store`, `pc_builder`, `ai_engine`, `management`), Django REST Framework, `django-filter`, `python-dotenv`, WhiteNoise, Pillow
 - **Database**: PostgreSQL target via `psycopg` (`psycopg3`), with automatic local SQLite fallback when PostgreSQL credentials are not configured in development/testing
-- **Frontend**: Django Templates, Bootstrap 5.3, Bootstrap Icons, Vanilla JavaScript, custom CSS & SVG hardware marks
+- **Frontend**: Django Templates, Tailwind CSS v4 (`pytailwindcss`), Dark-first + Light + System adaptive theme (`corecraftr-theme`), Local Lucide Icons (`v0.475.0`), Vanilla JavaScript & SVG hardware marks (see [FRONTEND_DESIGN.md](FRONTEND_DESIGN.md))
 - **Testing**: `pytest` + `pytest-django`
 
 ---
@@ -79,7 +79,8 @@ Copy-Item .env.example .env
 python manage.py migrate
 python manage.py seed_hardware_catalog
 
-# 6. Collect static files and start the development server
+# 6. Build frontend Tailwind CSS, collect static files, and start server
+tailwindcss -i frontend_src/tailwind.css -o static/css/app.min.css --minify
 python manage.py collectstatic --noinput
 python manage.py runserver
 ```

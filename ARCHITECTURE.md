@@ -44,8 +44,9 @@ CoreCraftr/
 │   ├── context_processors.py    # Hides portal nav flags from unauthorized users
 │   ├── forms.py, views.py, urls.py
 │   └── services/                # audit_service, image_service, inventory_service, product_service, csv_service, user_service, ai_spec_service
-├── templates/                   # Shared base template (base.html) and custom error pages (403.html, 404.html, 500.html)
-├── static/                      # CSS (main.css, management.css), JS (cart.js, management.js), SVGs, assets
+├── templates/                   # Shared base layout (base.html), partials (components/), error pages (403.html, 404.html, 500.html)
+├── frontend_src/                # Tailwind CSS v4 input & Dark/Light design tokens (tailwind.css)
+├── static/                      # Compiled Tailwind CSS (app.min.css), JS (theme.js, cart.js, management.js), vendor/lucide.min.js, SVGs
 └── media/                       # Uploaded product & gallery images (runtime/user media)
 ```
 
