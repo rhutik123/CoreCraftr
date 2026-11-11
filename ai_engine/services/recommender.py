@@ -168,9 +168,6 @@ class AIProviderClient:
         catalog_payload: list[dict],
         locked_slots: dict[str, int],
     ) -> dict | None:
-        if not self.is_configured:
-            return None
-
         system_prompt = (
             'You are a PC hardware recommendation engine. Select ONLY real product IDs '
             'from the provided JSON catalog to satisfy the user requirements and budget. '
@@ -192,6 +189,12 @@ class AIProviderClient:
             'locked_slots': locked_slots,
             'catalog': catalog_payload,
         })
+        return self.send_json_prompt(system_prompt, user_prompt)
+
+    def send_json_prompt(self, system_prompt: str, user_prompt: str) -> dict | None:
+        """Send a structured JSON prompt to the configured AI provider with safe error handling."""
+        if not self.is_configured:
+            return None
 
         try:
             if self.provider == 'openai':
@@ -714,3 +717,204 @@ class BuildRecommendationOrchestrator:
             f'for Rs. {total:,.2f} (target budget: Rs. {req.budget:,.2f}). '
             'Every component was checked by our deterministic compatibility engine.'
         )
+
+
+@dataclass
+class CartAdviceOutcome:
+    is_fallback: bool
+    source_label: str
+    notice_message: str
+    summary: str
+    direction_suggestions: dict[str, dict] = field(default_factory=dict)
+
+
+class CartCompatibilityAdvisor:
+    """
+    Catalog-grounded AI & deterministic fallback advisor for shopping cart
+    compatibility warnings. Never overrides deterministic rules or invents products.
+    """
+
+    def __init__(self, compatibility_engine: CompatibilityEngine | None = None):
+        self.engine = compatibility_engine or CompatibilityEngine()
+        self.ai_client = AIProviderClient()
+
+    def advise_on_conflicts(
+        self,
+        detailed_issues: list,
+        slot_items: dict,
+        allow_ai_call: bool = True,
+    ) -> CartAdviceOutcome:
+        """
+        Enrich cart compatibility issues with Beginner + Expert guidance and
+        validated, in-stock real replacement rationale.
+        """
+        serious_issues = [i for i in detailed_issues if i.status == 'incompatible']
+        candidate_pools_payload = []
+
+        # Collect pre-validated candidate replacement options grouped by direction key
+        direction_map = {}
+        for issue in detailed_issues:
+            for d in issue.fix_directions:
+                direction_map[d.direction_key] = d
+                if d.replacements:
+                    candidate_pools_payload.append({
+                        'direction_key': d.direction_key,
+                        'rule_code': issue.rule_code,
+                        'action_title': d.title,
+                        'target_slot': d.target_slot,
+                        'candidates': [
+                            {
+                                'product_id': rep.product.id,
+                                'name': rep.product.name,
+                                'price_inr': float(rep.product.price),
+                                'highlights': rep.spec_summary,
+                            }
+                            for rep in d.replacements
+                        ],
+                    })
+
+        is_fallback = True
+        source_label = 'Deterministic Compatibility Advisor (Fallback)'
+        notice_message = 'Showing verified catalogue alternatives validated by our deterministic compatibility rules.'
+        summary = self._default_summary(detailed_issues)
+        validated_direction_notes: dict[str, dict] = {}
+
+        if allow_ai_call and serious_issues and candidate_pools_payload and self.ai_client.is_configured:
+            ai_raw = self._request_ai_cart_advice(detailed_issues, candidate_pools_payload)
+            if ai_raw is not None:
+                validated = self._validate_ai_cart_advice(ai_raw, direction_map, slot_items)
+                if validated is not None:
+                    is_fallback = False
+                    source_label = f'AI-Assisted ({self.ai_client.provider.upper()}) + Compatibility Verified'
+                    notice_message = (
+                        'Plain-English explanations and replacement ranking are assisted by AI using only '
+                        'verified in-stock products passed through our deterministic compatibility gate.'
+                    )
+                    summary = validated['summary'] or summary
+                    validated_direction_notes = validated['direction_notes']
+                else:
+                    notice_message = (
+                        'AI suggestion referenced unavailable or incompatible components and was rejected; '
+                        'showing verified deterministic replacements instead.'
+                    )
+
+        return CartAdviceOutcome(
+            is_fallback=is_fallback,
+            source_label=source_label,
+            notice_message=notice_message,
+            summary=summary,
+            direction_suggestions=validated_direction_notes,
+        )
+
+    def _request_ai_cart_advice(self, detailed_issues: list, pools_payload: list[dict]) -> dict | None:
+        system_prompt = (
+            'You are a hardware compatibility advisor for an e-commerce cart. '
+            'Using ONLY the supplied product_id values from each direction candidate list, explain the '
+            'compatibility conflict in simple beginner language and recommend which supplied product_ids '
+            'resolve it. Never invent products, prices, or specs. '
+            'Return ONLY valid JSON: {"summary": string, "directions": {direction_key: '
+            '{"tip": string, "recommended_ids": [int], "reasons": {product_id_str: string}}}}.'
+        )
+        user_prompt = json.dumps({
+            'issues': [
+                {
+                    'rule_code': i.rule_code,
+                    'status': i.status,
+                    'title': i.title,
+                    'expert_explanation': i.expert_explanation,
+                    'beginner_explanation': i.beginner_explanation,
+                }
+                for i in detailed_issues if i.status in ('incompatible', 'warning')
+            ],
+            'verified_replacement_pools': pools_payload,
+        })
+        return self.ai_client.send_json_prompt(system_prompt, user_prompt)
+
+    def _validate_ai_cart_advice(self, ai_raw: dict, direction_map: dict, slot_items: dict) -> dict | None:
+        if not isinstance(ai_raw, dict):
+            return None
+        ai_dirs = ai_raw.get('directions')
+        if not isinstance(ai_dirs, dict):
+            return None
+
+        validated_notes: dict[str, dict] = {}
+        for dkey, dir_entry in ai_dirs.items():
+            direction = direction_map.get(dkey)
+            if not direction or not isinstance(dir_entry, dict):
+                return None
+
+            rec_ids = dir_entry.get('recommended_ids') or []
+            if not isinstance(rec_ids, list):
+                return None
+
+            cat_slot = slot_to_category_slot(direction.target_slot)
+            verified_ordered_ids = []
+            for pid in rec_ids:
+                if not isinstance(pid, int):
+                    return None
+                prod = (
+                    Product.objects.filter(
+                        id=pid,
+                        is_active=True,
+                        spec_verified=True,
+                        category__component_slot=cat_slot,
+                        inventory__quantity__gt=0,
+                    )
+                    .select_related('category', 'brand', 'inventory', 'spec_profile')
+                    .first()
+                )
+                if not prod or prod.spec_profile_safe is None:
+                    return None
+
+                # Always enforce deterministic compatibility gate on AI's proposed swap
+                test_map = dict(slot_items)
+                if direction.keep_product and direction.keep_slot:
+                    test_map[direction.keep_slot] = (direction.keep_product, 1)
+                test_map[direction.target_slot] = (prod, 1)
+                report = self.engine.evaluate_products(test_map)
+                if not report.is_build_valid_compatible:
+                    return None
+                if any(
+                    c.status == 'unknown' and direction.target_slot in c.affected_slots
+                    for c in report.checks
+                ):
+                    return None
+                verified_ordered_ids.append(pid)
+
+            raw_reasons = dir_entry.get('reasons') if isinstance(dir_entry.get('reasons'), dict) else {}
+            clean_reasons = {
+                int(k): str(v)[:300]
+                for k, v in raw_reasons.items()
+                if str(k).isdigit()
+            }
+            validated_notes[dkey] = {
+                'tip': str(dir_entry.get('tip') or '')[:400],
+                'recommended_ids': verified_ordered_ids,
+                'reasons': clean_reasons,
+            }
+
+        summary = str(ai_raw.get('summary') or '')[:600]
+        return {'summary': summary, 'direction_notes': validated_notes}
+
+    @staticmethod
+    def _default_summary(detailed_issues: list) -> str:
+        incompat = sum(1 for i in detailed_issues if i.status == 'incompatible')
+        warns = sum(1 for i in detailed_issues if i.status == 'warning')
+        unk = sum(1 for i in detailed_issues if i.status == 'unknown')
+        if incompat:
+            return (
+                f'Found {incompat} serious hardware incompatibility issue(s). '
+                'You can swap a conflicting item using the verified compatible options below, '
+                'or still proceed to checkout after confirming the compatibility notice.'
+            )
+        if unk:
+            return (
+                'One or more components are missing verified specifications, so complete compatibility '
+                'cannot be guaranteed automatically.'
+            )
+        if warns:
+            return (
+                f'No fatal hardware conflicts were detected, though {warns} advisory notice(s) '
+                '(such as BIOS version checks or companion parts) need your attention.'
+            )
+        return 'All checked hardware components in your cart work cleanly together.'

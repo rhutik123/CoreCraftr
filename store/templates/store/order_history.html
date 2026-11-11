@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load store_extras %}
 
 {% block title %}Order History | HardwareHub{% endblock %}
 
@@ -17,15 +18,18 @@
         <span class="fw-bold text-primary">{{ order.order_number }}</span>
         <span class="text-muted small ms-2">{{ order.date_ordered|date:"M d, Y H:i" }}</span>
       </div>
-      <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="badge text-bg-success">{{ order.get_status_display }}</span>
         <span class="badge text-bg-light border text-dark">{{ order.get_payment_method_display }}</span>
-        <span class="fw-bold fs-6">Rs. {{ order.total_amount|floatformat:2 }}</span>
+        {% if order.incompatibility_acknowledged %}
+        <span class="badge text-bg-warning">Incompatibility Acknowledged</span>
+        {% endif %}
+        <span class="fw-bold fs-6">{{ order.total_amount|inr }}</span>
       </div>
     </div>
     <ul class="list-unstyled small mb-2">
       {% for item in order.orderitem_set.all %}
-      <li>{{ item.quantity }}x {{ item.product_name_snapshot|default:item.product.name }} — Rs. {{ item.get_total|floatformat:2 }}</li>
+      <li>{{ item.quantity }}x {{ item.product_name_snapshot|default:item.product.name }} — {{ item.get_total|inr }}</li>
       {% endfor %}
     </ul>
     <a href="{% url 'order_confirmation' order.order_number %}" class="btn btn-sm btn-outline-primary">View Receipt</a>

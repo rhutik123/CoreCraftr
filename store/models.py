@@ -600,6 +600,10 @@ class Order(models.Model):
     customer_email = models.EmailField(blank=True, default='')
     customer_phone = models.CharField(max_length=30, blank=True, default='')
     notes = models.TextField(blank=True, default='')
+    compatibility_status = models.CharField(max_length=20, blank=True, default='')
+    compatibility_summary = models.JSONField(default=dict, blank=True)
+    incompatibility_acknowledged = models.BooleanField(default=False)
+    incompatibility_acknowledged_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-date_ordered']

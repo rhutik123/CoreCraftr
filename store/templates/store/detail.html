@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load store_extras %}
 
 {% block title %}{{ product.name }} | HardwareHub{% endblock %}
 
@@ -46,9 +47,9 @@
       {% endif %}
 
       <div class="d-flex align-items-baseline gap-3 mb-3">
-        <span class="display-6 fw-bold text-dark">Rs. {{ product.price|floatformat:2 }}</span>
+        <span class="display-6 fw-bold text-dark">{{ product.price|inr }}</span>
         {% if product.original_price and product.original_price > product.price %}
-        <span class="text-muted text-decoration-line-through fs-5">Rs. {{ product.original_price|floatformat:2 }}</span>
+        <span class="text-muted text-decoration-line-through fs-5">{{ product.original_price|inr }}</span>
         <span class="badge text-bg-danger">Save {{ product.discount_percent }}%</span>
         {% endif %}
       </div>
@@ -109,18 +110,42 @@
 <div class="row g-4 mb-4">
   <div class="col-lg-8">
     <div class="hh-card p-4">
-      <h4 class="fw-bold mb-3">Technical Specifications</h4>
-      {% if spec_profile %}
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h4 class="fw-bold mb-0">Technical Specifications</h4>
+        {% if product.spec_verified %}
+        <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">
+          <i class="bi bi-patch-check me-1"></i>Specs Verified
+        </span>
+        {% else %}
+        <span class="badge text-bg-secondary">Partial / Unverified Specs</span>
+        {% endif %}
+      </div>
+
+      {% if key_highlights %}
       <div class="row g-2 mb-3">
-        {% if spec_profile.socket %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Socket</small><strong>{{ spec_profile.socket }}</strong></div></div>{% endif %}
-        {% if spec_profile.chipset %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Chipset</small><strong>{{ spec_profile.chipset }}</strong></div></div>{% endif %}
-        {% if spec_profile.memory_type %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Memory Type</small><strong>{{ spec_profile.memory_type }}</strong></div></div>{% endif %}
-        {% if spec_profile.form_factor %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Form Factor</small><strong>{{ spec_profile.form_factor }}</strong></div></div>{% endif %}
-        {% if spec_profile.tdp_watts %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">TDP</small><strong>{{ spec_profile.tdp_watts }} W</strong></div></div>{% endif %}
-        {% if spec_profile.wattage %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Wattage</small><strong>{{ spec_profile.wattage }} W</strong></div></div>{% endif %}
-        {% if spec_profile.gpu_length_mm %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">GPU Length</small><strong>{{ spec_profile.gpu_length_mm }} mm</strong></div></div>{% endif %}
-        {% if spec_profile.max_gpu_length_mm %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Max GPU Clearance</small><strong>{{ spec_profile.max_gpu_length_mm }} mm</strong></div></div>{% endif %}
-        {% if spec_profile.max_cooler_height_mm %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Max Cooler Height</small><strong>{{ spec_profile.max_cooler_height_mm }} mm</strong></div></div>{% endif %}
+        {% for attr in key_highlights %}
+        <div class="col-sm-4 col-md-3">
+          <div class="p-2 rounded border h-100 {% if attr.is_unknown %}bg-light border-dashed{% else %}bg-light{% endif %}">
+            <small class="text-muted d-block">{{ attr.label }}</small>
+            {% if attr.is_unknown %}
+            <span class="badge text-bg-secondary mt-1">{{ attr.value }}</span>
+            {% else %}
+            <strong class="text-dark">{{ attr.value }}</strong>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if spec_profile and spec_profile.min_bios_note %}
+      <div class="alert alert-warning py-2 px-3 small mb-2">
+        <i class="bi bi-cpu me-1"></i><strong>BIOS Note:</strong> {{ spec_profile.min_bios_note }}
+      </div>
+      {% endif %}
+      {% if spec_profile and spec_profile.slot_sharing_notes %}
+      <div class="alert alert-info py-2 px-3 small mb-3">
+        <i class="bi bi-info-circle me-1"></i><strong>Expansion Note:</strong> {{ spec_profile.slot_sharing_notes }}
       </div>
       {% endif %}
 

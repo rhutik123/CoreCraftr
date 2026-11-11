@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -13,6 +14,7 @@ from pc_builder.services.builder_service import PCBuilderService
 from .forms import CheckoutForm, CreateUserForm, ProfileUpdateForm
 from .models import Category, Customer, Order, Product, WishlistItem
 from .services import cart_service, catalog_service, comparison_service, order_service
+from .services.cart_compatibility import CartCompatibilityService
 
 
 def _ensure_customer(user) -> Customer:
@@ -129,6 +131,7 @@ def detail(request, pk):
     context = {
         'product': product,
         'spec_profile': product.spec_profile_safe,
+        'key_highlights': catalog_service.get_key_hardware_highlights(product),
         'grouped_specs': grouped_specs,
         'related_products': related_products,
         'in_wishlist': in_wishlist,
@@ -189,13 +192,22 @@ def cart(request):
     """Shopping cart page separated cleanly from PCBuild and completed Orders."""
     user_cart = cart_service.get_or_create_cart(request)
     items = list(
-        user_cart.items.select_related('product', 'product__category', 'product__brand', 'product__inventory', 'source_build')
+        user_cart.items.select_related(
+            'product',
+            'product__category',
+            'product__brand',
+            'product__inventory',
+            'product__spec_profile',
+            'source_build',
+        )
     )
     stock_errors = cart_service.validate_cart_stock(user_cart)
     subtotal = user_cart.subtotal
     requires_shipping = any(not item.product.digital for item in items)
     shipping_fee = order_service.calculate_shipping_fee(subtotal, requires_shipping)
     estimated_total = subtotal + shipping_fee
+    free_shipping_gap = max(Decimal('0.00'), order_service.FREE_SHIPPING_THRESHOLD - subtotal)
+    compat = CartCompatibilityService().evaluate_cart_items(items, include_ai=True)
 
     context = {
         'cart': user_cart,
@@ -204,10 +216,47 @@ def cart(request):
         'shipping_fee': shipping_fee,
         'estimated_total': estimated_total,
         'free_shipping_threshold': order_service.FREE_SHIPPING_THRESHOLD,
+        'free_shipping_gap': free_shipping_gap,
         'stock_errors': stock_errors,
         'requires_shipping': requires_shipping,
+        'compat': compat,
     }
     return render(request, 'store/cart.html', context)
+
+
+@require_POST
+@transaction.atomic
+def swap_cart_item(request):
+    """Replace an incompatible cart component with a compatibility-verified alternative."""
+    remove_id = request.POST.get('remove_product_id')
+    add_id = request.POST.get('add_product_id')
+    if not add_id:
+        messages.error(request, 'Missing replacement product selection.')
+        return redirect('cart')
+
+    add_product = get_object_or_404(Product, id=add_id, is_active=True)
+    user_cart = cart_service.get_or_create_cart(request)
+
+    if not add_product.in_stock:
+        messages.error(request, f'{add_product.name} is currently out of stock.')
+        return redirect('cart')
+
+    removed_name = None
+    if remove_id:
+        old_item = user_cart.items.filter(product_id=remove_id).select_related('product').first()
+        if old_item:
+            removed_name = old_item.product.name
+            old_item.delete()
+
+    res = cart_service.update_cart_item(user_cart, add_product, action='add', quantity=1)
+    if res.success:
+        if removed_name:
+            messages.success(request, f'Replaced {removed_name} with compatible {add_product.name}.')
+        else:
+            messages.success(request, f'Added {add_product.name} to your cart.')
+    else:
+        messages.error(request, res.message)
+    return redirect('cart')
 
 
 @require_POST
@@ -244,13 +293,23 @@ def updateItem(request):
 
 
 def checkout(request):
-    """Dummy checkout flow with customer details, delivery address, and simulated payment selection."""
+    """Dummy checkout flow with fresh compatibility recalculation, explicit acknowledgement, and simulated payment."""
     user_cart = cart_service.get_or_create_cart(request)
-    items = list(user_cart.items.select_related('product', 'product__inventory'))
+    items = list(
+        user_cart.items.select_related(
+            'product',
+            'product__category',
+            'product__brand',
+            'product__inventory',
+            'product__spec_profile',
+        )
+    )
     if not items:
         messages.warning(request, 'Your cart is empty. Add hardware items before checking out.')
         return redirect('store')
 
+    # Always recalculate hardware compatibility fresh at checkout entry & submission (never cached)
+    compat = CartCompatibilityService().evaluate_cart_items(items, include_ai=False)
     stock_errors = cart_service.validate_cart_stock(user_cart)
     subtotal = user_cart.subtotal
     requires_shipping = any(not item.product.digital for item in items)
@@ -278,6 +337,15 @@ def checkout(request):
             cd = form.cleaned_data
             if requires_shipping and not all([cd.get('address'), cd.get('city'), cd.get('state'), cd.get('zipcode')]):
                 messages.error(request, 'Please fill in your complete delivery address (street, city, state, PIN/ZIP code).')
+            elif compat.has_incompatibility and not cd.get('acknowledge_incompatibility'):
+                form.add_error(
+                    'acknowledge_incompatibility',
+                    'Please check this box to confirm you understand some components may not work together.',
+                )
+                messages.warning(
+                    request,
+                    'Incompatible components detected. Confirm the compatibility acknowledgement box or review your cart to proceed.',
+                )
             else:
                 res = order_service.create_order_from_cart(
                     cart=user_cart,
@@ -292,6 +360,11 @@ def checkout(request):
                     country=cd.get('country') or 'India',
                     payment_method=cd['payment_method'],
                     notes=cd.get('notes', ''),
+                    compatibility_status=compat.status,
+                    compatibility_summary=compat.to_order_snapshot(),
+                    incompatibility_acknowledged=bool(
+                        compat.has_incompatibility and cd.get('acknowledge_incompatibility')
+                    ),
                 )
                 if res.success and res.order:
                     recent = request.session.get('recent_order_numbers', [])
@@ -312,19 +385,21 @@ def checkout(request):
         'total': total,
         'requires_shipping': requires_shipping,
         'stock_errors': stock_errors,
+        'compat': compat,
     }
     return render(request, 'store/checkout.html', context)
 
 
 @require_POST
 def processOrder(request):
-    """JSON checkout API endpoint (backwards-compatible path, server-side pricing & stock enforced)."""
+    """JSON checkout API endpoint (backwards-compatible path, server-side pricing, stock & compatibility recorded)."""
     try:
         data = json.loads(request.body.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({'success': False, 'message': 'Invalid JSON payload.'}, status=400)
 
     user_cart = cart_service.get_or_create_cart(request)
+    compat = CartCompatibilityService().evaluate_cart(user_cart, include_ai=False)
     form_data = data.get('form', {})
     ship_data = data.get('shipping', {})
     customer = _ensure_customer(request.user) if request.user.is_authenticated else None
@@ -349,6 +424,11 @@ def processOrder(request):
         zipcode=(ship_data.get('zipcode') or '').strip(),
         country=(ship_data.get('country') or 'India').strip(),
         payment_method=payment_method,
+        compatibility_status=compat.status,
+        compatibility_summary=compat.to_order_snapshot(),
+        incompatibility_acknowledged=bool(
+            compat.has_incompatibility and form_data.get('acknowledge_incompatibility')
+        ),
     )
 
     if not res.success or not res.order:
@@ -363,6 +443,7 @@ def processOrder(request):
         'message': res.message,
         'order_number': res.order.order_number,
         'total_amount': f'{res.order.total_amount:.2f}',
+        'compatibility_status': res.order.compatibility_status,
     })
 
 

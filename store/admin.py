@@ -127,10 +127,12 @@ class OrderAdmin(admin.ModelAdmin):
         'payment_method',
         'payment_status',
         'total_amount',
+        'compatibility_status',
+        'incompatibility_acknowledged',
         'complete',
         'date_ordered',
     )
-    list_filter = ('status', 'payment_method', 'payment_status', 'complete')
+    list_filter = ('status', 'payment_method', 'payment_status', 'compatibility_status', 'incompatibility_acknowledged', 'complete')
     search_fields = ('order_number', 'transaction_id', 'customer_name', 'customer_email')
     inlines = [OrderItemInline, ShippingAddressInline]
 

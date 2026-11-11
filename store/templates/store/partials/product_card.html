@@ -1,3 +1,4 @@
+{% load store_extras %}
 <div class="hh-card h-100 d-flex flex-column">
   <a href="{% url 'detail' product.id %}" class="hh-product-img-wrap text-decoration-none position-relative">
     <img src="{{ product.imageURL }}" alt="{{ product.name }}">
@@ -23,9 +24,9 @@
     <p class="small text-muted mb-2 flex-grow-1">{{ product.short_description|default:product.description|truncatechars:85 }}</p>
 
     <div class="d-flex align-items-baseline gap-2 mb-2">
-      <span class="fs-5 fw-bold text-dark">Rs. {{ product.price|floatformat:0 }}</span>
+      <span class="fs-5 fw-bold text-dark">{{ product.price|inr }}</span>
       {% if product.original_price and product.original_price > product.price %}
-      <small class="text-muted text-decoration-line-through">Rs. {{ product.original_price|floatformat:0 }}</small>
+      <small class="text-muted text-decoration-line-through">{{ product.original_price|inr_whole }}</small>
       {% endif %}
     </div>
 

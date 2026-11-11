@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 import uuid
 from django.db import transaction
+from django.utils import timezone
 from store.models import Cart, Customer, Inventory, Order, OrderItem, ShippingAddress
 
 
@@ -40,6 +41,9 @@ def create_order_from_cart(
     country: str = 'India',
     payment_method: str = 'cod_demo',
     notes: str = '',
+    compatibility_status: str = '',
+    compatibility_summary: dict | None = None,
+    incompatibility_acknowledged: bool = False,
 ) -> CheckoutResult:
     """
     Convert Cart into a confirmed Order inside a database transaction:
@@ -112,6 +116,10 @@ def create_order_from_cart(
         customer_email=customer_email,
         customer_phone=customer_phone,
         notes=notes,
+        compatibility_status=compatibility_status,
+        compatibility_summary=compatibility_summary or {},
+        incompatibility_acknowledged=incompatibility_acknowledged,
+        incompatibility_acknowledged_at=timezone.now() if incompatibility_acknowledged else None,
     )
 
     for item in cart_items:

@@ -97,3 +97,34 @@ Original Branch Preserved: `master`
 - **PostgreSQL Live Execution**: PostgreSQL 18.6 (`127.0.0.1:5432`, SCRAM-SHA-256 auth) is installed locally without pre-configured credentials in the environment, so live migrations, seeding, and tests ran using the automatic SQLite fallback (`DATABASE_MODE='sqlite_fallback'`). PostgreSQL target settings are ready and documented in `.env.example` and `SETUP_GUIDE.md`.
 - **Live External LLM Calls**: No `OPENAI_API_KEY` or `GEMINI_API_KEY` is configured in environment; external AI REST paths were verified with deterministic fallback execution plus unit tests using mocked `AIProviderClient` responses.
 - **Git History Secrets**: Historical commits on untouched `master` still retain the original repository's hardcoded secrets; remediation steps (credential rotation and optional history rewrite) are documented in `SETUP_GUIDE.md`.
+
+---
+
+## Phase 8 — Cart Hardware Compatibility Warnings, Non-Blocking Checkout Validation & Presentation Upgrade
+**Status:** Completed
+
+### Completed Tasks
+- **Reused Existing Deterministic Compatibility Engine (`store/services/cart_compatibility.py`)**: Added `CartCompatibilityService`, bridging shopping cart items to `pc_builder.services.compatibility.CompatibilityEngine`, `pc_builder.services.alternatives.SmartAlternativesService`, and `ai_engine.services.recommender.CartCompatibilityAdvisor` without duplicating compatibility rules.
+- **Ambiguity & Partial Cart Safeguards**: Automatically separates core internal hardware slots (`cpu`, `motherboard`, `ram`, `gpu`, `storage`, `psu`, `case`, `cooler`, `case_fan`) from peripherals/accessories (`monitor`, `keyboard`, `mouse`), skips PC build warnings when fewer than 2 core components exist, and emits scope/ambiguity notes when multiple items or quantities compete for single-component slots.
+- **Hardened Verified Replacement Filtering (`pc_builder/services/alternatives.py`)**: `SmartAlternativesService.get_compatible_replacements` now excludes products with `spec_verified=False`, missing `spec_profile_safe`, or `STATUS_UNKNOWN` compatibility against kept cart components.
+- **AI + Deterministic Gate Advisor (`ai_engine/services/recommender.py`)**: Extracted `AIProviderClient.send_json_prompt(...)` and implemented `CartCompatibilityAdvisor.advise_on_conflicts(...)` to provide beginner-friendly wording and replacement rationale constrained exclusively to DB-verified in-stock SKUs passing `CompatibilityEngine`, with automatic deterministic fallback when `AI_PROVIDER=none` or when an AI suggestion fails validation.
+- **Non-Blocking Cart & Fresh Checkout Recalculation (`store/views.py`, `store/forms.py`, `store/models.py`, `store/services/order_service.py`, `store/admin.py`)**:
+  - Added prominent `PC BUILD COMPATIBILITY CHECK` section on the cart page with Beginner & Expert dual explanations, involved component spec bullets, and Direction A / Direction B swap cards wired to `POST /cart/swap/` (`swap_cart_item`).
+  - Kept Checkout accessible even when serious incompatibilities exist; recalculated compatibility fresh on checkout GET and POST so stale/cached cart states cannot bypass checks.
+  - Added explicit checkout checkbox `"I understand that some selected components may not work together."` (`acknowledge_incompatibility` on `CheckoutForm`) and persisted `compatibility_status`, `compatibility_summary`, `incompatibility_acknowledged`, and `incompatibility_acknowledged_at` onto `Order` (migration `0007_order_compatibility_status_and_more.py`), rendered in Order Summary, `order_confirmation.html`, `order_history.html`, and `OrderAdmin`.
+- **Product Detail Specs & Indian Currency Upgrade (`store/services/catalog_service.py`, `store/templatetags/store_extras.py`, `static/css/main.css`, templates)**:
+  - Added category-relevant `get_key_hardware_highlights(product)` on product detail pages, explicitly marking missing/unverified specs as `Unknown / Not verified`.
+  - Added `format_inr` and `|inr` / `|inr_whole` template filters using Indian digit grouping (`₹10,799.00`) across store product cards, detail pages, cart, checkout, order confirmation, and order history, alongside responsive cart item rows and `.hh-thumb-md` styling.
+
+### Files Created / Modified
+- **Store Services, Models, Views & Template Tags**: `store/services/cart_compatibility.py`, `store/services/catalog_service.py`, `store/services/order_service.py`, `store/models.py`, `store/migrations/0007_order_compatibility_status_and_more.py`, `store/admin.py`, `store/forms.py`, `store/urls.py`, `store/views.py`, `store/templatetags/__init__.py`, `store/templatetags/store_extras.py`
+- **PC Builder & AI Advisor**: `pc_builder/services/alternatives.py`, `ai_engine/services/recommender.py`
+- **Templates & CSS**: `static/css/main.css`, `store/templates/store/cart.html`, `store/templates/store/checkout.html`, `store/templates/store/detail.html`, `store/templates/store/order_confirmation.html`, `store/templates/store/order_history.html`, `store/templates/store/partials/product_card.html`
+- **Tests**: `store/test_cart_compatibility.py` (11 comprehensive tests covering the `Gigabyte B760M DS3H DDR4` + `AMD Ryzen 5 5600` regression, compatible carts, unknown specs, non-blocking checkout, explicit acknowledgement + order audit trail, fresh checkout recalculation, Direction A/B grounded swaps, cart ambiguity handling, mocked AI validation gate + fallback, detail highlights, and INR formatting)
+
+### Tests Executed & Results
+- **Command**: `.\.venv\Scripts\pytest.exe -v` -> **42 passed in 9.77s (0 failed, 0 skipped)** (`31` existing tests + `11` new cart compatibility/checkout/detail/INR tests in `store/test_cart_compatibility.py`).
+- **Django Verification Checks**:
+  - `.\.venv\Scripts\python.exe manage.py check` -> `System check identified no issues (0 silenced).`
+  - `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run` -> `No changes detected.`
+  - `.\.venv\Scripts\python.exe manage.py collectstatic --noinput` -> `1 static file copied ... 186 unmodified.`

@@ -5,6 +5,7 @@ from pc_builder.services.compatibility import (
     STATUS_COMPATIBLE,
     STATUS_INCOMPATIBLE,
     STATUS_PRIORITY,
+    STATUS_UNKNOWN,
 )
 
 
@@ -170,16 +171,27 @@ class SmartAlternativesService:
 
         fixes = []
         for cand in candidates:
+            if not cand.spec_verified or cand.spec_profile_safe is None:
+                continue
             test_map = dict(slot_items)
             test_map[target_slot] = (cand, 1)
             report = self.engine.evaluate_products(test_map)
-            if report.is_build_valid_compatible:
-                fixes.append({
-                    'product': cand,
-                    'status': report.overall_status,
-                    'priority': STATUS_PRIORITY[report.overall_status],
-                    'score': _product_score(cand),
-                })
+            if not report.is_build_valid_compatible:
+                continue
+            # Do not recommend a replacement whose compatibility with existing parts is still unknown
+            has_slot_unknown = any(
+                chk.status == STATUS_UNKNOWN and target_slot in chk.affected_slots
+                for chk in report.checks
+            )
+            if has_slot_unknown:
+                continue
+            fixes.append({
+                'product': cand,
+                'status': report.overall_status,
+                'priority': STATUS_PRIORITY[report.overall_status],
+                'score': _product_score(cand),
+                'report': report,
+            })
 
         fixes.sort(key=lambda x: (x['priority'], -x['score'], x['product'].price))
         return fixes[:limit]

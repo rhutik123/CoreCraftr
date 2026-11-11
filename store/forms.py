@@ -107,3 +107,8 @@ class CheckoutForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Delivery or build notes (optional)'}),
     )
+    acknowledge_incompatibility = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='I understand that some selected components may not work together.',
+    )
