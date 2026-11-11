@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260">
+  <defs>
+    <linearGradient id="bg-cpu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="260" fill="url(#bg-cpu)"/>
+  <circle cx="340" cy="40" r="65" fill="#0ea5e9" opacity="0.12"/>
+  <circle cx="55" cy="220" r="55" fill="#0ea5e9" opacity="0.10"/>
+  <rect x="140" y="70" width="120" height="120" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="4"/><rect x="165" y="95" width="70" height="70" rx="6" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/><path d="M160 55v15M180 55v15M200 55v15M220 55v15M240 55v15M160 190v15M180 190v15M200 190v15M220 190v15M240 190v15M125 90h15M125 110h15M125 130h15M125 150h15M125 170h15M260 90h15M260 110h15M260 130h15M260 150h15M260 170h15" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+  <text x="200" y="236" text-anchor="middle" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="2">CPU / PROCESSOR</text>
+</svg>

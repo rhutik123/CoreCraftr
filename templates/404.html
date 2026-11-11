@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}Page Not Found (404) | CoreCraftr{% endblock %}
+
+{% block content %}
+<div class="hh-card p-5 text-center my-4">
+  <i class="bi bi-compass fs-1 text-info d-block mb-3"></i>
+  <h1 class="h3 fw-bold mb-2">404 — Page Not Found</h1>
+  <p class="text-muted mb-4">
+    The hardware listing or build page you requested could not be found on CoreCraftr.
+  </p>
+  <div class="d-flex flex-wrap justify-content-center gap-2">
+    <a href="{% url 'home' %}" class="btn btn-primary btn-sm">Back to Homepage</a>
+    <a href="{% url 'store' %}" class="btn btn-outline-secondary btn-sm">Browse Hardware</a>
+    <a href="{% url 'pc_builder' %}" class="btn btn-info btn-sm fw-semibold">Open PC Builder</a>
+  </div>
+</div>
+{% endblock %}

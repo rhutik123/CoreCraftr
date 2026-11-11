@@ -1,0 +1,472 @@
+{% extends 'base.html' %}
+
+{% block title %}Intelligent PC Builder ({{ build.get_mode_display }}) | CoreCraftr{% endblock %}
+
+{% block content %}
+<!-- Mode Switcher & Build Summary Bar -->
+<div class="hh-card p-4 mb-4">
+  <div class="row g-3 align-items-center justify-content-between">
+    <div class="col-lg-6">
+      <h1 class="h3 fw-bold mb-1"><i class="bi bi-tools text-primary me-2"></i>Intelligent PC Builder</h1>
+      <p class="small text-muted mb-2">Switch between Beginner and Expert modes anytime—your selected hardware build is always preserved.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <form method="post" action="{% url 'builder_switch_mode' %}">
+          {% csrf_token %}
+          <input type="hidden" name="mode" value="beginner">
+          <button type="submit" class="btn btn-sm {% if build.mode == 'beginner' %}btn-info fw-bold{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-magic me-1"></i>Help me build my first PC
+          </button>
+        </form>
+        <form method="post" action="{% url 'builder_switch_mode' %}">
+          {% csrf_token %}
+          <input type="hidden" name="mode" value="expert">
+          <button type="submit" class="btn btn-sm {% if build.mode == 'expert' %}btn-dark fw-bold{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-sliders me-1"></i>I know what I'm looking for
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="row g-2 text-center">
+        <div class="col-4">
+          <div class="p-2 bg-light rounded border">
+            <small class="text-muted d-block">Total Build Cost</small>
+            <strong class="fs-5 text-primary">Rs. {{ total_price|floatformat:0 }}</strong>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="p-2 bg-light rounded border">
+            <small class="text-muted d-block">Est. Power Draw</small>
+            <strong class="fs-5">{{ compatibility.estimated_wattage }} W</strong>
+            <small class="d-block text-muted" style="font-size: 0.72rem;">Rec PSU: {{ compatibility.recommended_psu_wattage }}W+</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="p-2 rounded border hh-badge-compat-{{ compatibility.overall_status }}">
+            <small class="d-block fw-semibold">Compatibility</small>
+            <strong class="text-uppercase">{{ compatibility.overall_status }}</strong>
+            <small class="d-block" style="font-size: 0.72rem;">{{ component_count }} part{{ component_count|pluralize }}</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-lg-end gap-2 mt-3">
+        <form method="post" action="{% url 'builder_add_to_cart' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success btn-sm fw-semibold" {% if component_count == 0 %}disabled{% endif %}>
+            <i class="bi bi-cart-plus me-1"></i>Add Complete Build to Cart
+          </button>
+        </form>
+
+        {% if request.user.is_authenticated %}
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#saveBuildModal" {% if component_count == 0 %}disabled{% endif %}>
+          <i class="bi bi-bookmark-plus me-1"></i>Save Build
+        </button>
+        <a href="{% url 'builder_saved_list' %}" class="btn btn-outline-dark btn-sm">Saved Builds</a>
+        {% else %}
+        <a href="{% url 'login' %}?next={% url 'pc_builder' %}" class="btn btn-outline-primary btn-sm">Sign In to Save Build</a>
+        {% endif %}
+
+        {% if component_count > 0 %}
+        <form method="post" action="{% url 'builder_clear' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-danger btn-sm">Clear</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deterministic Compatibility Engine Report -->
+{% if component_count > 0 %}
+<div class="hh-card p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="fw-bold mb-0">
+      <i class="bi bi-shield-check me-1 text-primary"></i>Deterministic Compatibility Verification
+    </h6>
+    <div class="d-flex gap-2 small">
+      <span class="badge hh-badge-compat-compatible">{{ compatibility.compatible_checks|length }} Compatible</span>
+      <span class="badge hh-badge-compat-warning">{{ compatibility.warnings|length }} Warning</span>
+      <span class="badge hh-badge-compat-incompatible">{{ compatibility.incompatibilities|length }} Incompatible</span>
+      <span class="badge hh-badge-compat-unknown">{{ compatibility.unknowns|length }} Unknown</span>
+    </div>
+  </div>
+
+  {% if compatibility.issues %}
+  <div class="d-flex flex-column gap-2 mt-2">
+    {% for issue in compatibility.issues %}
+    <div class="p-2 rounded border hh-badge-compat-{{ issue.status }} small">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div>
+          <strong class="text-uppercase">[{{ issue.status }}]</strong>
+          <strong>{{ issue.title }}</strong> — {{ issue.message }}
+          {% if issue.suggestion %}<div class="mt-1"><em>Suggestion:</em> {{ issue.suggestion }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="small text-success mb-0"><i class="bi bi-check-circle-fill me-1"></i>All currently selected components passed deterministic compatibility checks.</p>
+  {% endif %}
+
+  {% if compatibility.compatible_checks %}
+  <div class="mt-2">
+    <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#passedChecksCollapse">
+      Show {{ compatibility.compatible_checks|length }} verified compatible check(s)
+    </button>
+    <div class="collapse mt-2" id="passedChecksCollapse">
+      <ul class="list-group list-group-flush small">
+        {% for chk in compatibility.compatible_checks %}
+        <li class="list-group-item px-0 py-1 text-success">
+          <i class="bi bi-check2 me-1"></i><strong>{{ chk.category }}:</strong> {{ chk.message }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ==================== MODE A: BEGINNER MODE ==================== -->
+{% if build.mode == 'beginner' %}
+<div class="row g-4">
+  <!-- Beginner Questionnaire -->
+  <div class="col-lg-4">
+    <div class="hh-card p-4">
+      <span class="badge text-bg-info mb-2">Beginner Mode</span>
+      <h4 class="fw-bold mb-2">Help me build my first PC</h4>
+      <p class="small text-muted mb-3">Answer a few plain-English questions—we will select verified compatible parts from our real stock and explain every choice.</p>
+
+      <form method="post" action="{% url 'builder_recommend' %}">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Target Budget (Rs.)</label>
+          {{ beginner_form.budget }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Primary Use</label>
+          {{ beginner_form.primary_use }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Performance vs. Value</label>
+          {{ beginner_form.priority_preference }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Future Upgradeability</label>
+          {{ beginner_form.upgradeability_preference }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold d-block">Preferred Brands (Optional)</label>
+          <div class="row row-cols-2 g-1 small border rounded p-2 bg-light">
+            {% for choice in beginner_form.preferred_brands %}
+            <div class="col">
+              <div class="form-check">
+                {{ choice.tag }}
+                <label class="form-check-label" for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="form-check mb-2">
+          {{ beginner_form.include_monitor }}
+          <label class="form-check-label small" for="{{ beginner_form.include_monitor.id_for_label }}">Include a Monitor in budget</label>
+        </div>
+        <div class="form-check mb-2">
+          {{ beginner_form.include_peripherals }}
+          <label class="form-check-label small" for="{{ beginner_form.include_peripherals.id_for_label }}">Include Keyboard &amp; Mouse</label>
+        </div>
+        {% if component_count > 0 %}
+        <div class="form-check mb-3">
+          {{ beginner_form.preserve_existing }}
+          <label class="form-check-label small fw-semibold text-primary" for="{{ beginner_form.preserve_existing.id_for_label }}">
+            Keep my current selected parts and fill remaining slots
+          </label>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-info fw-semibold w-100 mt-2">
+          <i class="bi bi-stars me-1"></i>Generate Recommended Build
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Beginner Guided Breakdown -->
+  <div class="col-lg-8">
+    {% if guidance and guidance.recommendations %}
+    <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <div class="fw-bold">{{ build.name }}</div>
+        <small class="text-muted">{{ build.ai_source|default:guidance.source_label }}</small>
+      </div>
+      <div class="text-end">
+        <span class="fw-bold text-primary fs-5">Rs. {{ guidance.total_price|floatformat:0 }}</span>
+      </div>
+    </div>
+
+    <div class="d-flex flex-column gap-3">
+      {% for rec in guidance.recommendations %}
+      <div class="hh-card p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-2">
+          <div class="d-flex align-items-center gap-3">
+            <img src="{{ rec.product.imageURL }}" alt="{{ rec.product.name }}" class="hh-thumb-sm">
+            <div>
+              <span class="badge text-bg-secondary text-uppercase mb-1">{{ rec.slot|upper }}</span>
+              <h5 class="fw-bold mb-0">
+                <a href="{% url 'detail' rec.product.id %}" class="text-decoration-none text-dark">{{ rec.product.name }}</a>
+              </h5>
+              <small class="text-muted">{{ rec.product.brand.name|default:"" }} &bull; {{ rec.product.inventory.stock_status_label }}</small>
+            </div>
+          </div>
+          <div class="text-end">
+            <div class="fw-bold fs-5 text-dark">Rs. {{ rec.product.price|floatformat:0 }}</div>
+            <a href="{% url 'builder_select_slot' rec.slot %}" class="btn btn-outline-secondary btn-sm mt-1">Swap Part</a>
+          </div>
+        </div>
+
+        <div class="row g-2 small mt-2">
+          <div class="col-md-6">
+            <div class="p-2 bg-light rounded h-100">
+              <strong class="text-primary d-block">What this does:</strong>
+              {{ rec.what_it_does }}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-2 bg-light rounded h-100">
+              <strong class="text-success d-block">Why it fits you:</strong>
+              {{ rec.why_selected }} {{ rec.suits_user }}
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-warning py-2 px-3 small mt-2 mb-2">
+          <strong>Trade-offs to know:</strong> {{ rec.tradeoffs }}
+        </div>
+
+        <!-- Cheaper & Upgrade Alternatives -->
+        <div class="row g-2 small mt-1">
+          {% if rec.cheaper_alternative %}
+          <div class="col-md-6">
+            <div class="border rounded p-2 d-flex justify-content-between align-items-center bg-white">
+              <div>
+                <span class="badge text-bg-success mb-1">Cheaper Option</span>
+                <div class="fw-semibold">{{ rec.cheaper_alternative.product.name }}</div>
+                <div class="text-muted">{{ rec.cheaper_alternative.tradeoff }}</div>
+              </div>
+              <form method="post" action="{% url 'builder_set_component' %}">
+                {% csrf_token %}
+                <input type="hidden" name="slot" value="{{ rec.slot }}">
+                <input type="hidden" name="product_id" value="{{ rec.cheaper_alternative.product.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-success">Use</button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
+          {% if rec.upgrade_alternative %}
+          <div class="col-md-6">
+            <div class="border rounded p-2 d-flex justify-content-between align-items-center bg-white">
+              <div>
+                <span class="badge text-bg-primary mb-1">Meaningful Step-Up</span>
+                <div class="fw-semibold">{{ rec.upgrade_alternative.product.name }}</div>
+                <div class="text-muted">{{ rec.upgrade_alternative.tradeoff }}</div>
+              </div>
+              <form method="post" action="{% url 'builder_set_component' %}">
+                {% csrf_token %}
+                <input type="hidden" name="slot" value="{{ rec.slot }}">
+                <input type="hidden" name="product_id" value="{{ rec.upgrade_alternative.product.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Upgrade</button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Expandable Technical Specifications for Beginners -->
+        <div class="mt-2">
+          <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#techSpec-{{ rec.slot }}">
+            <i class="bi bi-chevron-down me-1"></i>View Detailed Technical Specifications
+          </button>
+          <div class="collapse mt-2" id="techSpec-{{ rec.slot }}">
+            <div class="p-2 bg-light border rounded small">
+              <div class="mb-1">{{ rec.product.short_description }}</div>
+              <a href="{% url 'detail' rec.product.id %}" class="text-decoration-none">Open full datasheet page &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="hh-card p-5 text-center">
+      <i class="bi bi-pc-display fs-1 text-info mb-3 d-block"></i>
+      <h4 class="fw-bold">Tell us what you need on the left</h4>
+      <p class="text-muted small mb-3">
+        Set your budget and primary use case, then click <strong>Generate Recommended Build</strong>.
+        You will get plain-English explanations, trade-offs, and compatibility verification for every part.
+      </p>
+      <p class="small text-muted mb-0">
+        Already know exact components you want? Switch to <button form="switchExpertInline" type="submit" class="btn btn-link btn-sm p-0 align-baseline">Expert Mode</button> anytime.
+      </p>
+      <form id="switchExpertInline" method="post" action="{% url 'builder_switch_mode' %}" class="d-none">
+        {% csrf_token %}
+        <input type="hidden" name="mode" value="expert">
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ==================== MODE B: EXPERT MODE ==================== -->
+{% else %}
+<div class="hh-card p-3 p-md-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <span class="badge text-bg-dark mb-1">Expert Mode</span>
+      <h4 class="fw-bold mb-0">Manual Hardware Component Matrix</h4>
+    </div>
+    <small class="text-muted">Inspect specifications, filter by socket/DDR/clearance, and compare smart alternatives.</small>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 170px;">Component Slot</th>
+          <th>Selected Hardware &amp; Key Specs</th>
+          <th style="width: 130px;">Price</th>
+          <th style="width: 240px;" class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in slots %}
+        <tr class="{% if entry.has_conflict %}table-danger{% endif %}">
+          <td>
+            <div class="fw-semibold"><i class="bi {{ entry.icon }} me-2 text-primary"></i>{{ entry.label }}</div>
+            {% if entry.required %}<span class="badge bg-light text-dark border">Core</span>{% else %}<span class="badge bg-light text-muted border">Optional</span>{% endif %}
+          </td>
+          <td>
+            {% if entry.component %}
+            {% with prod=entry.component.product spec=entry.component.product.spec_profile_safe %}
+            <div class="d-flex align-items-start gap-3">
+              <img src="{{ prod.imageURL }}" alt="{{ prod.name }}" class="hh-thumb-sm">
+              <div>
+                <a href="{% url 'detail' prod.id %}" class="fw-bold text-decoration-none text-dark">{{ prod.name }}</a>
+                <div class="small text-muted">
+                  {{ prod.brand.name|default:"" }}
+                  {% if spec %}
+                    {% if spec.socket %}&bull; Socket {{ spec.socket }}{% endif %}
+                    {% if spec.chipset %}&bull; {{ spec.chipset }}{% endif %}
+                    {% if spec.memory_type %}&bull; {{ spec.memory_type }}{% endif %}
+                    {% if spec.form_factor %}&bull; {{ spec.form_factor }}{% endif %}
+                    {% if spec.ram_capacity_gb %}&bull; {{ spec.ram_capacity_gb }}GB {{ spec.ram_speed_mhz }}MT/s{% endif %}
+                    {% if spec.gpu_length_mm %}&bull; {{ spec.gpu_length_mm }}mm{% endif %}
+                    {% if spec.wattage %}&bull; {{ spec.wattage }}W {{ spec.efficiency_rating }}{% endif %}
+                    {% if spec.max_gpu_length_mm %}&bull; Max GPU {{ spec.max_gpu_length_mm }}mm{% endif %}
+                  {% endif %}
+                </div>
+
+                {% if entry.replacements %}
+                <div class="mt-2 p-2 bg-white border border-danger rounded small">
+                  <strong class="text-danger d-block mb-1">Compatible Replacement Suggestions:</strong>
+                  <div class="d-flex flex-wrap gap-1">
+                    {% for rep in entry.replacements %}
+                    <form method="post" action="{% url 'builder_set_component' %}" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="slot" value="{{ entry.slot }}">
+                      <input type="hidden" name="product_id" value="{{ rep.product.id }}">
+                      <button type="submit" class="btn btn-xs btn-outline-success btn-sm py-0 px-2">
+                        Swap: {{ rep.product.name }} (Rs. {{ rep.product.price|floatformat:0 }})
+                      </button>
+                    </form>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+
+                {% if entry.alternatives %}
+                <div class="mt-1">
+                  <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#alts-{{ entry.slot }}">
+                    Smart Alternatives ({{ entry.alternatives|length }})
+                  </button>
+                  <div class="collapse mt-2" id="alts-{{ entry.slot }}">
+                    <div class="row g-2 small">
+                      {% for alt_key, alt in entry.alternatives.items %}
+                      <div class="col-md-6">
+                        <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center gap-2">
+                          <div>
+                            <span class="badge text-bg-secondary">{{ alt.label }}</span>
+                            <div class="fw-semibold">{{ alt.product.name }}</div>
+                            <div class="text-muted">Rs. {{ alt.product.price|floatformat:0 }} &bull; {{ alt.tradeoff }}</div>
+                          </div>
+                          <form method="post" action="{% url 'builder_set_component' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="slot" value="{{ entry.slot }}">
+                            <input type="hidden" name="product_id" value="{{ alt.product.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                          </form>
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endwith %}
+            {% else %}
+            <span class="text-muted small fst-italic">No {{ entry.label|lower }} selected</span>
+            {% endif %}
+          </td>
+          <td class="fw-bold">
+            {% if entry.component %}Rs. {{ entry.component.line_total|floatformat:0 }}{% else %}—{% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1">
+              <a href="{% url 'builder_select_slot' entry.slot %}" class="btn btn-sm {% if entry.component %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                {% if entry.component %}Change{% else %}+ Choose {{ entry.slot|upper }}{% endif %}
+              </a>
+              {% if entry.component %}
+              <form method="post" action="{% url 'builder_remove_component' entry.slot %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove"><i class="bi bi-x-lg"></i></button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Save Build Modal -->
+{% if request.user.is_authenticated %}
+<div class="modal fade" id="saveBuildModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'builder_save' %}" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Save PC Build</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small fw-semibold">Build Name</label>
+        {{ save_form.name }}
+        <small class="text-muted">Saves a snapshot of your current build to your account so you can load or order it anytime.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Build Snapshot</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

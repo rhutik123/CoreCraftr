@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Saved PC Builds | CoreCraftr{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">My Saved PC Builds</h1>
+    <small class="text-muted">Load any saved configuration back into the PC Builder or add all parts straight to your cart.</small>
+  </div>
+  <a href="{% url 'pc_builder' %}" class="btn btn-info btn-sm fw-semibold">Back to Active Builder</a>
+</div>
+
+{% if saved_builds %}
+<div class="row g-3">
+  {% for entry in saved_builds %}
+  <div class="col-md-6">
+    <div class="hh-card p-4 h-100 d-flex flex-column">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <span class="badge hh-badge-compat-{{ entry.compatibility.overall_status }} text-uppercase mb-1">
+            {{ entry.compatibility.overall_status }}
+          </span>
+          <h5 class="fw-bold mb-0">{{ entry.build.name }}</h5>
+          <small class="text-muted">{{ entry.build.get_primary_use_display }} &bull; Saved {{ entry.build.updated_at|date:"M d, Y" }}</small>
+        </div>
+        <div class="fs-5 fw-bold text-primary">Rs. {{ entry.total_price|floatformat:0 }}</div>
+      </div>
+
+      <ul class="list-unstyled small my-3 flex-grow-1">
+        {% for comp in entry.build.components.all %}
+        <li class="mb-1"><strong>{{ comp.get_slot_display }}:</strong> {{ comp.product.name }}</li>
+        {% endfor %}
+      </ul>
+
+      <div class="d-flex flex-wrap gap-2 mt-auto">
+        <form method="post" action="{% url 'builder_load' entry.build.uuid %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary btn-sm">Load into Builder</button>
+        </form>
+        <form method="post" action="{% url 'builder_add_to_cart' %}">
+          {% csrf_token %}
+          <input type="hidden" name="build_uuid" value="{{ entry.build.uuid }}">
+          <button type="submit" class="btn btn-success btn-sm">Add Build to Cart</button>
+        </form>
+        <form method="post" action="{% url 'builder_delete' entry.build.uuid %}" class="ms-auto">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="hh-card p-5 text-center">
+  <i class="bi bi-pc-display fs-1 text-muted mb-2 d-block"></i>
+  <h5>No saved builds yet</h5>
+  <p class="text-muted small">Configure a build in Beginner or Expert mode and click Save Build.</p>
+  <a href="{% url 'pc_builder' %}" class="btn btn-primary btn-sm">Start Building</a>
+</div>
+{% endif %}
+{% endblock %}

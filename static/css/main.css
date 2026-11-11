@@ -1,99 +1,138 @@
-body{
-	background-color: hsl(0, 0%, 98%);
+:root {
+  --hh-bg: #f4f6f9;
+  --hh-surface: #ffffff;
+  --hh-dark: #0f172a;
+  --hh-dark-2: #1e293b;
+  --hh-primary: #0284c7;
+  --hh-primary-hover: #0369a1;
+  --hh-accent: #10b981;
+  --hh-border: #e2e8f0;
+  --hh-muted: #64748b;
 }
 
-h1,h2,h3,h4,h5,h6{
-	color:hsl(0, 0%, 30%);
+body {
+  background-color: var(--hh-bg);
+  color: #1e293b;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.box-element{
-	box-shadow:hsl(0, 0%, 80%) 0 0 16px;
-	background-color: #fff;
-	border-radius: 4px;
-	padding: 10px;
+main {
+  flex: 1 0 auto;
 }
 
-.thumbnail{
-	width: 100%;
-	height: 200px;
-	-webkit-box-shadow: -1px -3px 5px -2px rgba(214,214,214,1);
-    -moz-box-shadow: -1px -3px 5px -2px rgba(214,214,214,1);
-    box-shadow: -1px -3px 5px -2px rgba(214,214,214,1);
+.hh-navbar {
+  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.product{
-	border-radius: 0 0 4px 4px;
+.hh-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #0c4a6e 100%);
+  color: #f8fafc;
+  border-radius: 1rem;
 }
 
-.bg-dark{
-	background-color: #4f868c!important;
+.hh-card {
+  background: var(--hh-surface);
+  border: 1px solid var(--hh-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-#cart-icon{
-	width:25px;
-	display: inline-block;
-	margin-left: 15px;
+.hh-card:hover {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
-#cart-total{
-	display: block;
-	text-align: center;
-	color:#fff;
-	background-color: red;
-	width: 20px;
-	height: 25px;
-	border-radius: 50%;
-	font-size: 14px;
+.hh-product-img-wrap {
+  height: 190px;
+  background-color: #0f172a;
+  border-radius: 0.75rem 0.75rem 0 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.col-lg-4, .col-lg-6, .col-lg-8, .col-lg-12{
-	margin-top: 10px;
+.hh-product-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.btn{
-	border-radius: 0;
+.hh-thumb-sm {
+  width: 64px;
+  height: 48px;
+  object-fit: contain;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  background-color: #0f172a;
 }
 
-.row-image{
-	width: 100px;
+.hh-thumb-md {
+  width: 76px;
+  height: 60px;
+  object-fit: contain;
+  padding: 0.3rem;
+  border-radius: 0.5rem;
+  background-color: #0f172a;
+  flex-shrink: 0;
 }
 
-.form-field{
-	width:250px;
-	display: inline-block;
-	padding: 5px;
+.hh-compat-panel {
+  border-radius: 0.85rem;
+  border-width: 1px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
-.cart-row{
-	display: flex;
-    align-items: flex-stretch;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #ececec;
-
+.hh-compat-direction {
+  background-color: #ffffff;
+  border: 1px solid var(--hh-border);
+  border-radius: 0.65rem;
 }
 
-.quantity{
-	display: inline-block;
-	font-weight: 700;
-	padding-right:10px;
-	
-
+.hh-badge-compat-compatible {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
 }
 
-.chg-quantity{
-	width: 12px;
-	cursor: pointer;
-	display: block;
-	margin-top: 5px;
-	transition:.1s;
+.hh-badge-compat-warning {
+  background-color: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
 }
 
-.chg-quantity:hover{
-	opacity: .6;
+.hh-badge-compat-incompatible {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
 }
 
+.hh-badge-compat-unknown {
+  background-color: #e2e8f0;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
 
-.hidden{
-	display: none!important;
+.hh-mode-pill {
+  border-radius: 0.65rem;
+  border: 2px solid var(--hh-border);
+  transition: all 0.15s ease;
+}
+
+.hh-mode-pill.active {
+  border-color: var(--hh-primary);
+  background-color: #f0f9ff;
+}
+
+.hh-spec-diff {
+  background-color: #fffbeb !important;
+}
+
+footer.hh-footer {
+  background-color: #0f172a;
+  color: #cbd5e1;
 }
