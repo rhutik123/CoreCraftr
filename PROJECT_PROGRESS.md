@@ -1,8 +1,8 @@
-# PROJECT PROGRESS — Computer Hardware E-Commerce + Intelligent PC Builder
+# PROJECT PROGRESS — CoreCraftr (Computer Hardware E-Commerce + Intelligent PC Builder)
 
-Repository: `Ecommerce-website` (upgraded from `https://github.com/rhutik123/Ecommerce-website`)  
-Branch: `feature/pc-builder-upgrade`  
-Original Branch Preserved: `master`
+Repository: `CoreCraftr` (`https://github.com/rhutik123/CoreCraftr`, migrated from `https://github.com/rhutik123/Ecommerce-website`)  
+Active Branch: `feature/corecraftr-branding` (branched from `feature/pc-builder-upgrade`; original `master` preserved)  
+Tagline: *Build Smarter. Build Better.*
 
 ---
 
@@ -128,3 +128,27 @@ Original Branch Preserved: `master`
   - `.\.venv\Scripts\python.exe manage.py check` -> `System check identified no issues (0 silenced).`
   - `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run` -> `No changes detected.`
   - `.\.venv\Scripts\python.exe manage.py collectstatic --noinput` -> `1 static file copied ... 186 unmodified.`
+
+---
+
+## Phase 9 — CoreCraftr Rebranding, Package Rename & Repository Migration
+**Status:** Completed
+
+### Completed Tasks
+- **Customer-Facing & Admin Branding (`CoreCraftr` / `Build Smarter. Build Better.`)**: Replaced `HardwareHub` branding across [templates/base.html](templates/base.html), all `store` and `pc_builder` page titles, homepage hero, login/registration copy, Django Admin (`corecraftr/urls.py`), password reset email/subject templates (`store/templates/store/reset_email.txt`, `reset_subject.txt`, wired via `store/urls.py`), and custom `templates/404.html` / `templates/500.html` error templates, plus added custom brand mark `static/images/corecraftr-mark.svg`.
+- **Safe Outer Django Package Rename (`ecomnmerce/` -> `corecraftr/`)**: Renamed the configuration package (`corecraftr/{__init__,settings,urls,wsgi,asgi}.py`), updated `manage.py` and `pytest.ini`, and preserved app packages `store`, `pc_builder`, and `ai_engine` (0 migration graph impact).
+- **Security & Git Hygiene Hardening**: Added `db.sqlite3`, `*.sqlite3`, `*.db`, `*.bak`, `*.orig`, and `*.tmp` to `.gitignore`, untracked `db.sqlite3` from future Git commits via `git rm --cached`, and scanned tracked files for accidental secrets or `.env` artifacts.
+- **Repository & Documentation Alignment**: Updated `origin` remote to `https://github.com/rhutik123/CoreCraftr.git`, updated `.env.example`, `README.md`, `ARCHITECTURE.md`, `SETUP_GUIDE.md`, and `PROJECT_PROGRESS.md`.
+- **Automated Branding & Integration Tests (`store/test_branding_and_migration.py`)**: Verified `corecraftr` settings module wiring, HTTP 200 & `CoreCraftr` / `Build Smarter. Build Better.` branding (with no `HardwareHub` remnants), Admin login header, email templates, and 404/500 templates.
+
+### Tests Executed & Results
+- **Command**: `.\.venv\Scripts\pytest.exe -v` -> **46 passed in 10.74s (0 failed, 0 skipped)** (`42` existing tests + `4` branding/package-migration integration tests).
+- **Django Verification Checks**:
+  - `.\.venv\Scripts\python.exe manage.py check` -> `System check identified no issues (0 silenced).`
+  - `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run` -> `No changes detected.`
+  - `.\.venv\Scripts\python.exe manage.py collectstatic --noinput` -> `1 static file copied ... 187 unmodified.`
+
+### Known Limitations Preserved
+- PostgreSQL target configuration was verified at settings/env level only; local verification ran on SQLite fallback because PostgreSQL credentials are not configured in the local environment.
+- Live OpenAI / Gemini API calls remain untested in the absence of live API keys (verified via deterministic fallback + mocked `AIProviderClient` tests).
+- Historical upstream commits (`master` `d44f34f`/`fed3650` and `db.sqlite3` up through `767fb3f`) remain unchanged on remote because force-push / history rewriting was strictly avoided; exposed historical credentials must still be rotated as documented in `SETUP_GUIDE.md`.

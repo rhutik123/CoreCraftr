@@ -1,0 +1,13 @@
+Hello{% if user.get_username %} {{ user.get_username }}{% endif %},
+
+You are receiving this email because a password reset was requested for your CoreCraftr account.
+
+Please go to the following page and choose a new password:
+{{ protocol }}://{{ domain }}{% url 'password_reset_confirm' uidb64=uid token=token %}
+
+Your username, in case you have forgotten it: {{ user.get_username }}
+
+If you did not request this change, you can safely ignore this email.
+
+Thanks,
+CoreCraftr — Build Smarter. Build Better.

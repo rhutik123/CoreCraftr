@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Sign In | HardwareHub{% endblock %}
+{% block title %}Sign In | CoreCraftr{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center py-4">
@@ -21,7 +21,7 @@
         <button type="submit" class="btn btn-primary w-100 mb-3">Sign In</button>
       </form>
       <div class="text-center small">
-        <div class="mb-1">New to HardwareHub? <a href="{% url 'register' %}">Create an account</a></div>
+        <div class="mb-1">New to CoreCraftr? <a href="{% url 'register' %}">Create an account</a></div>
         <div><a href="{% url 'reset_password' %}" class="text-muted">Forgot your password?</a></div>
       </div>
     </div>

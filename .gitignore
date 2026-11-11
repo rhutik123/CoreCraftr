@@ -15,13 +15,20 @@ ENV/
 .env.*.local
 !.env.example
 
-# Django
+# Django & local database / backups
 *.log
 local_settings.py
 staticfiles/
 media/
-db.sqlite3-journal
-*.sqlite3.bak
+db.sqlite3
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.bak
+*.orig
+*.tmp
 
 # Testing & coverage
 .pytest_cache/

@@ -1,5 +1,5 @@
 """
-Django settings for ecomnmerce project (HardwareHub E-Commerce & Intelligent PC Builder).
+Django settings for CoreCraftr (corecraftr package — Computer Hardware E-Commerce & Intelligent PC Builder).
 
 All sensitive credentials and environment-specific settings are loaded from
 environment variables (and an optional local .env file). Never commit real
@@ -85,7 +85,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'ecomnmerce.urls'
+ROOT_URLCONF = 'corecraftr.urls'
 
 TEMPLATES = [
     {
@@ -104,8 +104,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'ecomnmerce.wsgi.application'
-ASGI_APPLICATION = 'ecomnmerce.asgi.application'
+WSGI_APPLICATION = 'corecraftr.wsgi.application'
+ASGI_APPLICATION = 'corecraftr.asgi.application'
 
 
 # Database configuration
@@ -114,7 +114,7 @@ ASGI_APPLICATION = 'ecomnmerce.asgi.application'
 # password is not provided in development/test environments.
 
 DB_ENGINE = os.environ.get('DB_ENGINE', 'postgresql').strip().lower()
-DB_NAME = os.environ.get('DB_NAME', 'hardwarehub_db').strip()
+DB_NAME = os.environ.get('DB_NAME', 'corecraftr_db').strip()
 DB_USER = os.environ.get('DB_USER', 'postgres').strip()
 DB_PASSWORD = os.environ.get('DB_PASSWORD', '').strip()
 DB_HOST = os.environ.get('DB_HOST', '127.0.0.1').strip()
@@ -196,7 +196,7 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@hardwarehub.local')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@corecraftr.local')
 
 
 # Security Hardening
