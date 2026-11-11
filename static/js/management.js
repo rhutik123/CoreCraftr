@@ -93,11 +93,19 @@
                 : inputEl;
         }
 
+        const hasVal = val !== undefined && val !== null && String(val).trim() !== '';
+        const statusPill = hasVal
+            ? '<span class="text-[10px] spec-status-badge cc-badge cc-badge-neutral" data-spec-status-for="' + escapeHtml(field.name) + '">Manually entered</span>'
+            : '<span class="text-[10px] spec-status-badge" data-spec-status-for="' + escapeHtml(field.name) + '"></span>';
+
         return (
             '<div>' +
-            '<label for="' + id + '" class="cc-label">' +
+            '<div class="flex flex-wrap items-center justify-between gap-1 mb-1">' +
+            '<label for="' + id + '" class="cc-label mb-0">' +
             escapeHtml(field.label) + criticalBadge +
             '</label>' +
+            statusPill +
+            '</div>' +
             controlHtml +
             '</div>'
         );
@@ -190,8 +198,20 @@
         if (el) el.addEventListener('change', updateLivePreview);
     });
     if (dynamicSpecsContainer) {
-        dynamicSpecsContainer.addEventListener('input', updateLivePreview);
-        dynamicSpecsContainer.addEventListener('change', updateLivePreview);
+        const onSpecEdited = (e) => {
+            const el = e.target.closest('.spec-live-input');
+            if (el) {
+                el.dataset.manualDirty = 'true';
+                const fieldName = (el.name || '').replace(/^spec_/, '');
+                if (fieldName) {
+                    const hasVal = String(el.value || '').trim() !== '';
+                    setFieldStatusBadge(fieldName, hasVal ? 'manual' : '');
+                }
+            }
+            updateLivePreview();
+        };
+        dynamicSpecsContainer.addEventListener('input', onSpecEdited);
+        dynamicSpecsContainer.addEventListener('change', onSpecEdited);
     }
 
     if (galleryFileInput) {
@@ -249,6 +269,27 @@
         el.addEventListener('change', trigger);
     });
 
+    const SPEC_STATUS_STYLES = {
+        sourced: { label: 'Sourced', cls: 'cc-badge cc-badge-compatible' },
+        needs_verification: { label: 'Needs verification', cls: 'cc-badge cc-badge-tech' },
+        conflicting: { label: 'Conflicting sources', cls: 'cc-badge cc-badge-warning' },
+        not_found: { label: 'Not found', cls: 'cc-badge cc-badge-neutral' },
+        manual: { label: 'Manually entered', cls: 'cc-badge cc-badge-neutral' },
+    };
+
+    function setFieldStatusBadge(fieldName, statusKey) {
+        const badge = productForm.querySelector('[data-spec-status-for="' + fieldName + '"]');
+        if (!badge) return;
+        const meta = SPEC_STATUS_STYLES[statusKey];
+        if (!meta) {
+            badge.textContent = '';
+            badge.className = 'text-[10px] spec-status-badge';
+            return;
+        }
+        badge.textContent = meta.label;
+        badge.className = 'text-[10px] spec-status-badge ' + meta.cls;
+    }
+
     const aiBtn = document.getElementById('btn-ai-research');
     const aiRefUrlInput = document.getElementById('id_ai_reference_url');
     const aiResultsPanel = document.getElementById('ai-research-results');
@@ -256,64 +297,102 @@
     const aiApprovalBox = document.getElementById('ai-approval-confirm-box');
     const aiApprovalCheckbox = document.getElementById('id_confirm_ai_approval');
 
-    if (aiBtn && aiResearchUrl && aiResultsPanel) {
-        aiBtn.addEventListener('click', async () => {
-            const prodName = nameInput ? nameInput.value.trim() : '';
-            const catId = categorySelect ? categorySelect.value : '';
-            if (!prodName || !catId) {
-                aiResultsPanel.innerHTML = '<div class="cc-alert cc-alert-warning text-xs">Enter a Product Name and Category first before researching specifications.</div>';
+    async function executeAiResearch(confirmedMatch = false) {
+        if (!aiBtn || !aiResearchUrl || !aiResultsPanel) return;
+        const prodName = nameInput ? nameInput.value.trim() : '';
+        const catId = categorySelect ? categorySelect.value : '';
+        if (!prodName || !catId) {
+            aiResultsPanel.innerHTML =
+                '<div class="cc-alert cc-alert-warning text-xs">' +
+                'Enter both a <strong>Product Name</strong> and <strong>Category</strong> above before running AI research.' +
+                '</div>';
+            aiResultsPanel.classList.remove('hidden');
+            return;
+        }
+
+        const selectedBrandText = brandSelect && brandSelect.value
+            ? (brandSelect.options[brandSelect.selectedIndex]?.text || '')
+            : (newBrandInput ? newBrandInput.value.trim() : '');
+
+        aiBtn.disabled = true;
+        const origHtml = aiBtn.innerHTML;
+        aiBtn.textContent = 'Researching online...';
+
+        try {
+            const resp = await fetch(aiResearchUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({
+                    product_name: prodName,
+                    category_id: catId,
+                    brand_name: selectedBrandText,
+                    model_number: modelInput ? modelInput.value.trim() : '',
+                    reference_url: aiRefUrlInput ? aiRefUrlInput.value.trim() : '',
+                    product_id: productId || null,
+                    confirmed_match: confirmedMatch,
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                aiResultsPanel.innerHTML =
+                    '<div class="cc-alert cc-alert-danger text-xs"><div><strong>Research Stopped:</strong> ' +
+                    escapeHtml(data.error || 'Request failed.') + ' Enter specifications manually below.</div></div>';
                 aiResultsPanel.classList.remove('hidden');
                 return;
             }
 
-            const selectedBrandText = brandSelect && brandSelect.value
-                ? (brandSelect.options[brandSelect.selectedIndex]?.text || '')
-                : (newBrandInput ? newBrandInput.value.trim() : '');
+            renderAiResults(data);
+        } catch (err) {
+            aiResultsPanel.innerHTML =
+                '<div class="cc-alert cc-alert-warning text-xs">AI research service could not be reached right now. Continue entering specifications manually below.</div>';
+            aiResultsPanel.classList.remove('hidden');
+        } finally {
+            aiBtn.disabled = false;
+            aiBtn.innerHTML = origHtml;
+            refreshIcons();
+        }
+    }
 
-            aiBtn.disabled = true;
-            const origText = aiBtn.innerHTML;
-            aiBtn.textContent = 'Researching...';
+    if (aiBtn && aiResearchUrl && aiResultsPanel) {
+        aiBtn.addEventListener('click', () => executeAiResearch(false));
+    }
 
-            try {
-                const resp = await fetch(aiResearchUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCsrfToken(),
-                    },
-                    body: JSON.stringify({
-                        product_name: prodName,
-                        category_id: catId,
-                        brand_name: selectedBrandText,
-                        model_number: modelInput ? modelInput.value.trim() : '',
-                        reference_url: aiRefUrlInput ? aiRefUrlInput.value.trim() : '',
-                        product_id: productId || null,
-                    }),
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    aiResultsPanel.innerHTML =
-                        '<div class="cc-alert cc-alert-danger text-xs"><div><strong>Research Stopped:</strong> ' +
-                        escapeHtml(data.error || 'Request failed.') + ' Enter specifications manually below.</div></div>';
-                    aiResultsPanel.classList.remove('hidden');
-                    return;
-                }
+    function formatSpecPreviewVal(v) {
+        if (Array.isArray(v)) return v.join(', ');
+        if (v && typeof v === 'object') return JSON.stringify(v);
+        if (v === true) return 'Yes';
+        if (v === false) return 'No';
+        return String(v);
+    }
 
-                renderAiResults(data);
-            } catch (err) {
-                aiResultsPanel.innerHTML =
-                    '<div class="cc-alert cc-alert-warning text-xs">AI service unreachable right now. Enter specifications manually below.</div>';
-                aiResultsPanel.classList.remove('hidden');
-            } finally {
-                aiBtn.disabled = false;
-                aiBtn.innerHTML = origText;
-                refreshIcons();
-            }
-        });
+    function applySingleSpecField(fieldName, value, statusKey = 'manual') {
+        const el = productForm.querySelector('[name="spec_' + fieldName + '"]');
+        if (!el) return;
+        if (el.tagName === 'SELECT') {
+            el.value = value === true ? 'true' : (value === false ? 'false' : String(value));
+        } else if (Array.isArray(value)) {
+            el.value = value.join(', ');
+        } else if (value && typeof value === 'object') {
+            el.value = JSON.stringify(value);
+        } else {
+            el.value = String(value);
+        }
+        el.dataset.manualDirty = statusKey === 'manual' ? 'true' : 'false';
+        setFieldStatusBadge(fieldName, statusKey);
+        updateLivePreview();
     }
 
     function renderAiResults(data) {
         if (!aiResultsPanel) return;
+
+        // Keep approval hidden unless staff explicitly applies an exact draft
+        if (aiDraftInput) aiDraftInput.value = '';
+        if (aiApprovalBox) aiApprovalBox.classList.add('hidden');
+        if (aiApprovalCheckbox) aiApprovalCheckbox.checked = false;
+
         if (!data.available) {
             aiResultsPanel.innerHTML =
                 '<div class="cc-alert cc-alert-info text-xs">' +
@@ -325,6 +404,77 @@
             return;
         }
 
+        // Sync per-field status indicators when user hasn't manually edited a field
+        Object.entries(data.field_statuses || {}).forEach(([fname, st]) => {
+            const el = productForm.querySelector('[name="spec_' + fname + '"]');
+            if (el && (el.dataset.manualDirty === 'true' || String(el.value || '').trim() !== '')) {
+                return;
+            }
+            setFieldStatusBadge(fname, st);
+        });
+
+        // Situation 2: Possible typo or ambiguous product query -> ask confirmation before treating as identified
+        if (data.match_status === 'ambiguous') {
+            const suggestions = data.suggested_corrections || [];
+            const suggestionsHtml = suggestions.map((s, idx) => {
+                const urlHtml = s.url
+                    ? ' &mdash; <a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener noreferrer" class="text-tech-ink hover:underline">Reference</a>'
+                    : '';
+                return (
+                    '<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface p-2.5">' +
+                    '<div class="text-xs min-w-0">' +
+                    '<div class="font-bold text-ink">' + escapeHtml(s.name) + '</div>' +
+                    '<div class="text-[11px] text-muted">' + escapeHtml(s.reason || 'Suggested exact product match') + urlHtml + '</div>' +
+                    '</div>' +
+                    '<button type="button" class="cc-btn cc-btn-tech cc-btn-sm py-1 px-2.5 text-xs btn-confirm-suggestion" data-suggestion-idx="' + idx + '">' +
+                    'Confirm &amp; Research</button>' +
+                    '</div>'
+                );
+            }).join('');
+
+            aiResultsPanel.innerHTML =
+                '<div class="cc-alert cc-alert-warning flex-col items-stretch gap-2.5 text-xs">' +
+                '<div class="font-bold flex items-center gap-2"><i data-lucide="help-circle" class="w-4 h-4 shrink-0"></i><span>Possible Typo or Ambiguous Product Name</span></div>' +
+                '<p>' + escapeHtml(data.summary_note || 'No specs were auto-populated because the entered name did not match unambiguously.') + '</p>' +
+                (suggestionsHtml ? '<div class="space-y-2">' + suggestionsHtml + '</div>' : '') +
+                '<div class="flex justify-end"><button type="button" id="btn-keep-manual-entry" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2.5 text-xs">Keep My Name &amp; Enter Manually</button></div>' +
+                '</div>';
+            aiResultsPanel.classList.remove('hidden');
+            refreshIcons();
+
+            aiResultsPanel.querySelectorAll('.btn-confirm-suggestion').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const idx = Number(btn.dataset.suggestionIdx);
+                    const picked = suggestions[idx];
+                    if (picked && picked.name && nameInput) {
+                        nameInput.value = picked.name;
+                        updateLivePreview();
+                        executeAiResearch(true);
+                    }
+                });
+            });
+            const keepManualBtn = document.getElementById('btn-keep-manual-entry');
+            if (keepManualBtn) {
+                keepManualBtn.addEventListener('click', () => {
+                    aiResultsPanel.innerHTML = '<div class="text-xs text-muted">Keeping entered product name. Enter technical specifications manually below.</div>';
+                });
+            }
+            return;
+        }
+
+        // Situation 3: Product not confidently identified -> no guessed specs, keep manual entry open
+        if (data.match_status === 'not_found') {
+            aiResultsPanel.innerHTML =
+                '<div class="cc-alert cc-alert-warning flex-col items-start gap-1.5 text-xs">' +
+                '<div class="font-bold flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i><span>Product not confidently identified.</span></div>' +
+                '<p>' + escapeHtml(data.summary_note || 'No technical specifications were guessed or populated. You may enter specifications manually below and save normally.') + '</p>' +
+                '</div>';
+            aiResultsPanel.classList.remove('hidden');
+            refreshIcons();
+            return;
+        }
+
+        // Situation 1: Exact product found -> display reviewable specs, conflicts, and sources
         const badgeMap = {
             verified_manufacturer: 'cc-badge-compatible',
             mixed_sources: 'cc-badge-tech',
@@ -334,27 +484,51 @@
         const vBadge = badgeMap[data.verification_status] || 'cc-badge-neutral';
 
         const proposedEntries = Object.entries(data.proposed_specs || {});
+        const fieldStatuses = data.field_statuses || {};
         const proposedHtml = proposedEntries.length
-            ? proposedEntries.map(([k, v]) => '<li><code class="cc-mono text-accent-ink">' + escapeHtml(k) + '</code>: <strong>' + escapeHtml(Array.isArray(v) ? v.join(', ') : (typeof v === 'object' ? JSON.stringify(v) : v)) + '</strong></li>').join('')
+            ? proposedEntries.map(([k, v]) => {
+                const st = fieldStatuses[k] || 'needs_verification';
+                const stMeta = SPEC_STATUS_STYLES[st] || SPEC_STATUS_STYLES.needs_verification;
+                return (
+                    '<li class="flex flex-wrap items-center gap-2 py-0.5">' +
+                    '<code class="cc-mono text-accent-ink">' + escapeHtml(k) + '</code>: ' +
+                    '<strong>' + escapeHtml(formatSpecPreviewVal(v)) + '</strong>' +
+                    '<span class="' + stMeta.cls + ' text-[10px]">' + escapeHtml(stMeta.label) + '</span>' +
+                    '</li>'
+                );
+            }).join('')
             : '<li class="text-muted">No verified typed specs proposed.</li>';
 
         const conflictHtml = (data.conflicting_fields && data.conflicting_fields.length)
-            ? '<div class="cc-alert cc-alert-warning flex-col text-xs mt-3"><strong>Conflicting Sources Detected (resolve manually):</strong><ul class="list-disc pl-5 mt-1">' +
-              data.conflicting_fields.map((c) => '<li><strong>' + escapeHtml(c.label || c.field) + '</strong>: ' + escapeHtml((c.values || []).join(' vs ')) + ' — ' + escapeHtml(c.note) + '</li>').join('') +
-              '</ul></div>'
+            ? '<div class="cc-alert cc-alert-warning flex-col items-stretch text-xs mt-2"><strong>Conflicting Sources Detected (choose carefully or enter manually):</strong><div class="space-y-2 mt-1.5">' +
+              data.conflicting_fields.map((c, cIdx) => {
+                  const valBtns = (c.values || []).map((val, vIdx) => (
+                      '<button type="button" class="cc-btn cc-btn-secondary cc-btn-sm py-0.5 px-2 text-[11px] btn-pick-conflict" data-field="' + escapeHtml(c.field) + '" data-value="' + escapeHtml(String(val)) + '">' +
+                      'Use: ' + escapeHtml(String(val)) +
+                      '</button>'
+                  )).join(' ');
+                  return (
+                      '<div class="rounded-lg border border-border bg-surface p-2">' +
+                      '<div><strong>' + escapeHtml(c.label || c.field) + '</strong>: ' + escapeHtml((c.values || []).join(' vs ')) +
+                      (c.note ? ' &mdash; <span class="text-muted">' + escapeHtml(c.note) + '</span>' : '') + '</div>' +
+                      (valBtns ? '<div class="mt-1.5 flex flex-wrap gap-1.5">' + valBtns + '</div>' : '') +
+                      '</div>'
+                  );
+              }).join('') +
+              '</div></div>'
             : '';
 
         const missingHtml = (data.missing_fields && data.missing_fields.length)
-            ? '<div class="text-xs text-muted mt-2"><strong>Unverified / Missing Fields (kept unknown):</strong> ' +
+            ? '<div class="text-xs text-muted mt-1.5"><strong>Not found / Unverified (left unknown):</strong> ' +
               data.missing_fields.map((m) => '<code class="cc-mono">' + escapeHtml(m) + '</code>').join(', ') + '</div>'
             : '';
 
         const rejectedHtml = (data.rejected_fields && data.rejected_fields.length)
-            ? '<div class="text-xs text-red-400 mt-2"><strong>Safety Filter Notices:</strong> ' + data.rejected_fields.map(escapeHtml).join('; ') + '</div>'
+            ? '<div class="text-xs text-red-400 mt-1.5"><strong>Safety Filter Notices:</strong> ' + data.rejected_fields.map(escapeHtml).join('; ') + '</div>'
             : '';
 
         const sourcesHtml = (data.sources && data.sources.length)
-            ? '<div class="mt-3"><strong class="text-xs text-ink">Attributed Sources:</strong><ul class="space-y-1 text-xs mt-1">' +
+            ? '<div class="mt-2"><strong class="text-xs text-ink">Attributed Sources:</strong><ul class="space-y-1 text-xs mt-1">' +
               data.sources.map((s) => {
                   const tag = s.origin_type === 'manufacturer'
                       ? '<span class="cc-badge cc-badge-compatible text-[10px] mr-1.5">Manufacturer</span>'
@@ -362,30 +536,51 @@
                   return '<li>' + tag + '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener noreferrer" class="text-tech-ink hover:underline">' + escapeHtml(s.title || s.url) + '</a></li>';
               }).join('') +
               '</ul></div>'
-            : '<div class="cc-alert cc-alert-danger text-xs mt-2 py-2">No verified source URL provided; review carefully before saving.</div>';
+            : '<div class="cc-alert cc-alert-danger text-xs mt-2 py-2">No verified source URL provided; verify every value manually before saving.</div>';
+
+        const identifiedBanner = data.identified_name
+            ? '<div class="text-xs text-ink font-semibold">Matched Product: <span class="text-accent-ink">' + escapeHtml(data.identified_name) + '</span></div>'
+            : '';
 
         aiResultsPanel.innerHTML =
             '<div class="cc-panel-elevated p-4 space-y-2.5">' +
             '<div class="flex flex-wrap justify-between items-center gap-2">' +
             '<div class="flex flex-wrap gap-1.5"><span class="cc-badge ' + vBadge + '">' + escapeHtml(data.verification_label) + '</span>' +
             '<span class="cc-badge cc-badge-neutral cc-mono">Confidence: ' + escapeHtml(data.confidence) + '</span></div>' +
-            '<div class="flex gap-2">' +
-            '<button type="button" class="cc-btn cc-btn-success cc-btn-sm" id="btn-apply-ai-draft"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i><span>Populate Editable Form Fields</span></button>' +
+            '<div class="flex flex-wrap gap-1.5">' +
+            '<button type="button" class="cc-btn cc-btn-success cc-btn-sm" id="btn-apply-ai-empty"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i><span>Populate Empty Fields</span></button>' +
+            '<button type="button" class="cc-btn cc-btn-secondary cc-btn-sm" id="btn-apply-ai-all">Overwrite Matching Fields</button>' +
             '<button type="button" class="cc-btn cc-btn-secondary cc-btn-sm" id="btn-discard-ai-draft">Discard</button>' +
             '</div></div>' +
+            identifiedBanner +
             (data.summary_note ? '<p class="text-xs text-muted">' + escapeHtml(data.summary_note) + '</p>' : '') +
-            '<div class="text-xs text-ink"><strong>Suggested Specifications (Editable Draft #' + escapeHtml(data.draft_id) + '):</strong><ul class="list-disc pl-5 mt-1 space-y-0.5">' + proposedHtml + '</ul></div>' +
+            '<div class="text-xs text-ink"><strong>Researched Specifications (Editable Draft #' + escapeHtml(data.draft_id) + '):</strong><ul class="mt-1 space-y-0.5">' + proposedHtml + '</ul></div>' +
             conflictHtml + missingHtml + rejectedHtml + sourcesHtml +
             '</div>';
         aiResultsPanel.classList.remove('hidden');
         refreshIcons();
 
-        const applyBtn = document.getElementById('btn-apply-ai-draft');
+        const applyEmptyBtn = document.getElementById('btn-apply-ai-empty');
+        const applyAllBtn = document.getElementById('btn-apply-ai-all');
         const discardBtn = document.getElementById('btn-discard-ai-draft');
 
-        if (applyBtn) {
-            applyBtn.addEventListener('click', () => applyDraftToForm(data));
+        if (applyEmptyBtn) {
+            applyEmptyBtn.addEventListener('click', () => applyDraftToForm(data, false));
         }
+        if (applyAllBtn) {
+            applyAllBtn.addEventListener('click', () => applyDraftToForm(data, true));
+        }
+        aiResultsPanel.querySelectorAll('.btn-pick-conflict').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const fname = btn.dataset.field;
+                const val = btn.dataset.value;
+                if (fname) {
+                    applySingleSpecField(fname, val, 'manual');
+                    if (aiDraftInput) aiDraftInput.value = data.draft_id || '';
+                    if (aiApprovalBox) aiApprovalBox.classList.remove('hidden');
+                }
+            });
+        });
         if (discardBtn) {
             discardBtn.addEventListener('click', async () => {
                 if (aiDiscardUrlTemplate && data.draft_id) {
@@ -395,36 +590,61 @@
                 if (aiDraftInput) aiDraftInput.value = '';
                 if (aiApprovalBox) aiApprovalBox.classList.add('hidden');
                 if (aiApprovalCheckbox) aiApprovalCheckbox.checked = false;
-                aiResultsPanel.innerHTML = '<div class="text-xs text-muted">AI specification draft discarded.</div>';
+                aiResultsPanel.innerHTML = '<div class="text-xs text-muted">AI specification draft discarded. Enter specifications manually below.</div>';
             });
         }
     }
 
-    function applyDraftToForm(data) {
+    function applyDraftToForm(data, overwriteExisting = false) {
         if (!data) return;
         const proposed = data.proposed_specs || {};
+        const fieldStatuses = data.field_statuses || {};
+        let skippedManualCount = 0;
+
         Object.entries(proposed).forEach(([fieldName, value]) => {
             const el = productForm.querySelector('[name="spec_' + fieldName + '"]');
             if (!el) return;
-            if (el.tagName === 'SELECT') {
-                el.value = value === true ? 'true' : (value === false ? 'false' : '');
-            } else if (Array.isArray(value)) {
-                el.value = value.join(', ');
-            } else if (value && typeof value === 'object') {
-                el.value = JSON.stringify(value);
-            } else {
-                el.value = String(value);
+            const currentVal = String(el.value || '').trim();
+            const isManuallyEntered = el.dataset.manualDirty === 'true' || currentVal !== '';
+            if (!overwriteExisting && isManuallyEntered) {
+                skippedManualCount += 1;
+                return;
             }
+            const statusKey = fieldStatuses[fieldName] || 'needs_verification';
+            applySingleSpecField(fieldName, value, statusKey);
+        });
+
+        Object.entries(fieldStatuses).forEach(([fieldName, st]) => {
+            if (Object.prototype.hasOwnProperty.call(proposed, fieldName)) return;
+            const el = productForm.querySelector('[name="spec_' + fieldName + '"]');
+            if (!el || el.dataset.manualDirty === 'true' || String(el.value || '').trim() !== '') return;
+            setFieldStatusBadge(fieldName, st);
         });
 
         const customSpecs = data.custom_specs || {};
         Object.entries(customSpecs).forEach(([k, v]) => {
-            appendCustomSpecRow('AI Draft', k, v, '');
+            const existingKeys = Array.from(productForm.querySelectorAll('input[name="custom_spec_key[]"]')).map((inp) => inp.value.trim().toLowerCase());
+            if (!existingKeys.includes(k.trim().toLowerCase())) {
+                appendCustomSpecRow('AI Draft', k, v, '');
+            }
         });
 
         if (aiDraftInput) aiDraftInput.value = data.draft_id || '';
         if (aiApprovalBox) aiApprovalBox.classList.remove('hidden');
         if (aiApprovalCheckbox) aiApprovalCheckbox.checked = true;
+        if (skippedManualCount > 0 && !overwriteExisting) {
+            const noteId = 'ai-preserved-manual-note';
+            let existingNote = document.getElementById(noteId);
+            if (!existingNote && aiResultsPanel) {
+                existingNote = document.createElement('div');
+                existingNote.id = noteId;
+                existingNote.className = 'cc-alert cc-alert-info text-xs mt-2';
+                aiResultsPanel.appendChild(existingNote);
+            }
+            if (existingNote) {
+                existingNote.textContent = 'Preserved ' + skippedManualCount + ' manually entered field(s). Use "Overwrite Matching Fields" if you want to replace them.';
+            }
+        }
         updateLivePreview();
     }
 

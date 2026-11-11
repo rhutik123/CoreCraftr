@@ -209,9 +209,7 @@ def get_verified_inventory_metrics() -> dict:
             else:
                 in_stock_count += 1
 
-    active_categories_count = Category.objects.filter(
-        products__status=Product.STATUS_PUBLISHED
-    ).distinct().count()
+    active_categories_count = Category.objects.filter(is_active=True).count()
 
     non_archived_count = len(active_skus) + len(draft_skus)
 

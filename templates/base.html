@@ -96,6 +96,13 @@
                     </span>
                     <span class="truncate">{{ cat.name }}</span>
                   </a>
+                {% empty %}
+                  <div class="col-span-2 rounded-xl border border-dashed border-border px-3 py-3 text-center text-xs text-muted">
+                    No hardware categories have been created yet.
+                    {% if can_access_portal %}
+                      <a href="{% url 'management:category_list' %}" class="block mt-1 font-semibold text-accent-ink hover:underline">Manage Categories &rarr;</a>
+                    {% endif %}
+                  </div>
                 {% endfor %}
               </div>
             </div>
@@ -241,6 +248,8 @@
               <i data-lucide="{{ cat.icon_class|lucide_icon:'cpu' }}" class="w-3.5 h-3.5 text-accent-ink"></i>
               <span>{{ cat.name }}</span>
             </a>
+          {% empty %}
+            <p class="px-3 py-2 text-xs text-muted">No hardware categories created yet.</p>
           {% endfor %}
         </div>
       </div>
@@ -279,9 +288,9 @@
           <h3 class="text-xs font-bold uppercase tracking-wider text-ink mb-3">Shop Hardware</h3>
           <ul class="space-y-2 text-xs text-muted">
             <li><a href="{% url 'store' %}" class="hover:text-accent-ink transition-colors">Full Hardware Catalog</a></li>
-            <li><a href="{% url 'store' %}?category=cpu" class="hover:text-accent-ink transition-colors">Processors (CPU)</a></li>
-            <li><a href="{% url 'store' %}?category=motherboard" class="hover:text-accent-ink transition-colors">Motherboards</a></li>
-            <li><a href="{% url 'store' %}?category=gpu" class="hover:text-accent-ink transition-colors">Graphics Cards (GPU)</a></li>
+            {% for cat in nav_categories|slice:":4" %}
+              <li><a href="{% url 'store' %}?category={{ cat.slug }}" class="hover:text-accent-ink transition-colors">{{ cat.name }}</a></li>
+            {% endfor %}
             <li><a href="{% url 'compare' %}" class="hover:text-accent-ink transition-colors">Side-by-Side Comparison</a></li>
           </ul>
         </div>

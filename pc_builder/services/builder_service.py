@@ -239,7 +239,7 @@ class PCBuilderService:
         params = params or {}
         cat_slot = slot_to_category_slot(slot)
         qs = (
-            Product.objects.filter(is_active=True, category__component_slot=cat_slot)
+            Product.objects.filter(is_active=True, category__component_slot=cat_slot, category__is_active=True)
             .select_related('category', 'brand', 'inventory', 'spec_profile')
         )
 
@@ -331,6 +331,7 @@ class PCBuilderService:
         available_brands = Brand.objects.filter(
             products__is_active=True,
             products__category__component_slot=cat_slot,
+            products__category__is_active=True,
         ).distinct().order_by('name')
 
         return {

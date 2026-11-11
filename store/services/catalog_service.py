@@ -7,10 +7,11 @@ def get_homepage_sections():
     """Fetch curated sections for the homepage."""
     base_qs = (
         Product.objects.filter(is_active=True)
+        .filter(Q(category__isnull=True) | Q(category__is_active=True))
         .select_related('category', 'brand', 'inventory', 'spec_profile')
     )
     return {
-        'categories': Category.objects.annotate(
+        'categories': Category.objects.filter(is_active=True).annotate(
             product_count=Count('products', filter=Q(products__is_active=True))
         ).order_by('display_order', 'name'),
         'featured_products': base_qs.filter(is_featured=True)[:8],
@@ -26,6 +27,7 @@ def filter_catalogue_products(params: dict):
     """
     qs = (
         Product.objects.filter(is_active=True)
+        .filter(Q(category__isnull=True) | Q(category__is_active=True))
         .select_related('category', 'brand', 'inventory', 'spec_profile')
     )
 
@@ -101,11 +103,14 @@ def get_grouped_specifications(product: Product) -> dict[str, list]:
 
 def get_available_filter_facets():
     """Return available categories, brands, sockets, and memory types for filter sidebars."""
-    categories = Category.objects.annotate(
+    categories = Category.objects.filter(is_active=True).annotate(
         product_count=Count('products', filter=Q(products__is_active=True))
     ).order_by('display_order', 'name')
     brands = Brand.objects.annotate(
-        product_count=Count('products', filter=Q(products__is_active=True))
+        product_count=Count(
+            'products',
+            filter=Q(products__is_active=True) & (Q(products__category__isnull=True) | Q(products__category__is_active=True)),
+        )
     ).filter(product_count__gt=0).order_by('name')
     return {
         'categories': categories,

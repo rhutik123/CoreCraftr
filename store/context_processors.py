@@ -4,7 +4,7 @@ from store.models import Category, Cart
 
 def global_store_context(request):
     """Provides navigation categories, active cart count, and active builder count globally."""
-    nav_categories = Category.objects.filter(show_in_nav=True).order_by('display_order', 'name')
+    nav_categories = Category.objects.filter(is_active=True, show_in_nav=True).order_by('display_order', 'name')
 
     cart_item_count = 0
     if request.user.is_authenticated:

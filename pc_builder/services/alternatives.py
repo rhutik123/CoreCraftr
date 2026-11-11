@@ -82,6 +82,7 @@ class SmartAlternativesService:
             Product.objects.filter(
                 is_active=True,
                 category__component_slot=cat_slot,
+                category__is_active=True,
                 inventory__quantity__gt=0,
             )
             .exclude(pk=current_product.pk)
@@ -163,6 +164,7 @@ class SmartAlternativesService:
             Product.objects.filter(
                 is_active=True,
                 category__component_slot=cat_slot,
+                category__is_active=True,
                 inventory__quantity__gt=0,
             )
             .exclude(pk=current_id)

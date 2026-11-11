@@ -3,7 +3,8 @@ import os
 import uuid
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator, validate_slug
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
@@ -42,14 +43,43 @@ class Category(models.Model):
     display_order = models.PositiveIntegerField(default=0)
     is_pc_component = models.BooleanField(default=False, db_index=True)
     show_in_nav = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         verbose_name_plural = 'Categories'
         ordering = ['display_order', 'name']
 
+    def clean(self):
+        super().clean()
+        self.name = (self.name or '').strip()
+        if not self.name:
+            raise ValidationError({'name': 'Category name is required.'})
+
+        raw_slug = (self.slug or '').strip().lower()
+        self.slug = raw_slug if raw_slug else slugify(self.name)
+        if not self.slug:
+            raise ValidationError({'slug': 'Enter a valid slug using letters, numbers, underscores, or hyphens.'})
+        try:
+            validate_slug(self.slug)
+        except ValidationError:
+            raise ValidationError({'slug': 'Slug may only contain letters, numbers, underscores, or hyphens.'})
+
+        dup_name = Category.objects.filter(name__iexact=self.name)
+        dup_slug = Category.objects.filter(slug__iexact=self.slug)
+        if self.pk:
+            dup_name = dup_name.exclude(pk=self.pk)
+            dup_slug = dup_slug.exclude(pk=self.pk)
+        if dup_name.exists():
+            raise ValidationError({'name': f'A category named "{self.name}" already exists.'})
+        if dup_slug.exists():
+            raise ValidationError({'slug': f'The slug "{self.slug}" is already used by another category.'})
+
     def save(self, *args, **kwargs):
+        self.name = (self.name or '').strip()
         if not self.slug:
             self.slug = slugify(self.name)
+        else:
+            self.slug = self.slug.strip().lower()
         super().save(*args, **kwargs)
 
     def __str__(self):

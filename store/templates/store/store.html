@@ -152,11 +152,29 @@
     {% else %}
       <div class="cc-card p-10 text-center">
         <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-elevated border border-border text-muted">
-          <i data-lucide="search" class="w-6 h-6"></i>
+          <i data-lucide="{% if not categories %}folder-tree{% else %}search{% endif %}" class="w-6 h-6"></i>
         </div>
-        <h2 class="text-lg font-bold text-ink mb-1">No matching hardware products found</h2>
-        <p class="text-sm text-muted mb-5">Try clearing one or more filters to browse the full catalogue.</p>
-        <a href="{% url 'store' %}" class="cc-btn cc-btn-primary cc-btn-sm">Clear Filters</a>
+        {% if not categories and not filters.q and not filters.category and not filters.brand and not filters.socket and not filters.memory_type and not filters.min_price and not filters.max_price and not filters.in_stock %}
+          <h2 class="text-lg font-bold text-ink mb-1">No hardware categories have been created yet.</h2>
+          {% if can_access_portal %}
+            <p class="text-sm text-muted mb-5">Create or initialize categories in the Management Portal before adding products to the catalogue.</p>
+            <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-primary cc-btn-sm">Go to Category Management</a>
+          {% else %}
+            <p class="text-sm text-muted">The catalogue is currently empty while categories are being configured. Please check back soon.</p>
+          {% endif %}
+        {% elif not filters.q and not filters.category and not filters.brand and not filters.socket and not filters.memory_type and not filters.min_price and not filters.max_price and not filters.in_stock %}
+          <h2 class="text-lg font-bold text-ink mb-1">No products have been published yet</h2>
+          {% if can_access_portal %}
+            <p class="text-sm text-muted mb-5">Categories are ready. Add your first hardware product from the Management Portal.</p>
+            <a href="{% url 'management:product_create' %}" class="cc-btn cc-btn-primary cc-btn-sm">Add First Product</a>
+          {% else %}
+            <p class="text-sm text-muted">Hardware inventory is currently being added to our catalogue. Please check back shortly.</p>
+          {% endif %}
+        {% else %}
+          <h2 class="text-lg font-bold text-ink mb-1">No matching hardware products found</h2>
+          <p class="text-sm text-muted mb-5">Try clearing one or more filters to browse the full catalogue.</p>
+          <a href="{% url 'store' %}" class="cc-btn cc-btn-primary cc-btn-sm">Clear Filters</a>
+        {% endif %}
       </div>
     {% endif %}
   </div>

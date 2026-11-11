@@ -10,24 +10,11 @@ from store.models import (
     Product,
     ProductSpecification,
 )
+from store.services.category_init import STARTER_CATEGORIES, initialize_starter_categories
 from pc_builder.models import ChipsetCPUSupport
 
 
-CATEGORIES = [
-    ('CPUs & Processors', 'processors', 'cpu', 'bi-cpu', 1, True, True),
-    ('Motherboards', 'motherboards', 'motherboard', 'bi-motherboard', 2, True, True),
-    ('Memory (RAM)', 'memory-ram', 'ram', 'bi-memory', 3, True, True),
-    ('Graphics Cards (GPU)', 'graphics-cards', 'gpu', 'bi-gpu-card', 4, True, True),
-    ('Storage (SSD & HDD)', 'storage', 'storage', 'bi-nvme', 5, True, True),
-    ('Power Supplies (PSU)', 'power-supplies', 'psu', 'bi-lightning-charge', 6, True, True),
-    ('PC Cabinets & Cases', 'cabinets-cases', 'case', 'bi-pc', 7, True, True),
-    ('CPU Coolers', 'cpu-coolers', 'cooler', 'bi-fan', 8, True, True),
-    ('Case Fans', 'case-fans', 'case_fan', 'bi-wind', 9, True, False),
-    ('Monitors', 'monitors', 'monitor', 'bi-display', 10, False, True),
-    ('Keyboards', 'keyboards', 'keyboard', 'bi-keyboard', 11, False, True),
-    ('Mice', 'mice', 'mouse', 'bi-mouse', 12, False, False),
-    ('Accessories', 'accessories', 'accessory', 'bi-plug', 13, False, False),
-]
+CATEGORIES = [entry[:7] for entry in STARTER_CATEGORIES]
 
 BRANDS = [
     'AMD', 'Intel', 'ASUS', 'MSI', 'Gigabyte', 'ASRock', 'ZOTAC', 'Sapphire',
@@ -1800,20 +1787,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        cat_map = {}
-        for name, slug, slot, icon, order, is_pc, show_nav in CATEGORIES:
-            cat, _ = Category.objects.update_or_create(
-                slug=slug,
-                defaults={
-                    'name': name,
-                    'component_slot': slot,
-                    'icon_class': icon,
-                    'display_order': order,
-                    'is_pc_component': is_pc,
-                    'show_in_nav': show_nav,
-                },
-            )
-            cat_map[slug] = cat
+        cat_init_result = initialize_starter_categories(overwrite_existing=False)
+        cat_map = cat_init_result['categories_by_slug']
 
         brand_map = {}
         for bname in BRANDS:

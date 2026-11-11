@@ -16,6 +16,7 @@ def run_ai_spec_research(
     reference_url: str = '',
     product=None,
     request=None,
+    confirmed_match: bool = False,
 ) -> AIResearchDraft:
     """
     Invoke ProductSpecResearchService and store an editable AIResearchDraft for review.
@@ -33,6 +34,7 @@ def run_ai_spec_research(
         model_number=model_number,
         reference_url=reference_url,
         user_id=actor.id if actor and getattr(actor, 'is_authenticated', False) else None,
+        confirmed_match=confirmed_match,
     )
 
     draft = AIResearchDraft.objects.create(
@@ -44,6 +46,8 @@ def run_ai_spec_research(
         model_number=(model_number or '').strip()[:120],
         reference_url=(reference_url or '').strip()[:500],
         status=result.status,
+        match_status=result.match_status,
+        identified_name=result.identified_name[:255],
         verification_status=result.verification_status,
         confidence=result.confidence,
         proposed_specs=result.proposed_specs,
@@ -52,6 +56,8 @@ def run_ai_spec_research(
         missing_fields=result.missing_fields,
         conflicting_fields=result.conflicting_fields,
         rejected_fields=result.rejected_fields,
+        suggested_corrections=result.suggested_corrections,
+        field_statuses=result.field_statuses,
         summary_note=result.summary_note,
         raw_provider_status=result.raw_provider_status,
     )

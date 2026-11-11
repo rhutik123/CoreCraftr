@@ -80,17 +80,40 @@
     </div>
     <a href="{% url 'store' %}" class="cc-btn cc-btn-secondary cc-btn-sm">View Full Catalogue</a>
   </div>
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-    {% for cat in categories %}
-      <a href="{% url 'category_detail' cat.slug %}" class="cc-card cc-card-hover p-4 flex flex-col items-center text-center group">
-        <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-elevated border border-border text-accent-ink group-hover:bg-accent group-hover:text-on-accent transition-colors">
-          <i data-lucide="{{ cat.icon_class|lucide_icon:'cpu' }}" class="w-5 h-5"></i>
+  {% if categories %}
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {% for cat in categories %}
+        <a href="{% url 'category_detail' cat.slug %}" class="cc-card cc-card-hover p-4 flex flex-col items-center text-center group">
+          <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-elevated border border-border text-accent-ink group-hover:bg-accent group-hover:text-on-accent transition-colors">
+            <i data-lucide="{{ cat.icon_class|lucide_icon:'cpu' }}" class="w-5 h-5"></i>
+          </div>
+          <div class="text-xs sm:text-sm font-bold text-ink">{{ cat.name }}</div>
+          <div class="text-[11px] text-muted mt-0.5 cc-mono">{{ cat.product_count }} item{{ cat.product_count|pluralize }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="cc-card p-8 text-center">
+      <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-elevated border border-border text-muted">
+        <i data-lucide="folder-tree" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-base font-bold text-ink mb-1">No hardware categories have been created yet.</h3>
+      {% if can_access_portal %}
+        <p class="text-xs sm:text-sm text-muted mb-4 max-w-lg mx-auto">
+          Initialize starter hardware categories or create your own categories in the management portal before adding products.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-primary cc-btn-sm">
+            <i data-lucide="folder-tree" class="w-4 h-4"></i><span>Go to Category Management</span>
+          </a>
         </div>
-        <div class="text-xs sm:text-sm font-bold text-ink">{{ cat.name }}</div>
-        <div class="text-[11px] text-muted mt-0.5 cc-mono">{{ cat.product_count }} item{{ cat.product_count|pluralize }}</div>
-      </a>
-    {% endfor %}
-  </div>
+      {% else %}
+        <p class="text-xs sm:text-sm text-muted max-w-md mx-auto">
+          Our hardware catalogue is currently being organized. Please check back shortly or explore our PC Builder workspace.
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
 </section>
 
 <!-- Budget PC Starting Points -->
@@ -129,11 +152,20 @@
     </div>
     <a href="{% url 'store' %}?sort=featured" class="cc-btn cc-btn-secondary cc-btn-sm">Shop Featured</a>
   </div>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    {% for product in featured_products %}
-      {% include 'store/partials/product_card.html' with product=product %}
-    {% endfor %}
-  </div>
+  {% if featured_products %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {% for product in featured_products %}
+        {% include 'store/partials/product_card.html' with product=product %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="cc-card p-6 text-center text-xs sm:text-sm text-muted">
+      Featured hardware items will appear here once products are published to the catalogue.
+      {% if can_access_portal %}
+        <a href="{% url 'management:product_create' %}" class="text-tech-ink font-semibold hover:underline ml-1">Add a product &rarr;</a>
+      {% endif %}
+    </div>
+  {% endif %}
 </section>
 
 <!-- Trending & Special Offers -->
@@ -144,11 +176,17 @@
         <h2 class="text-xl sm:text-2xl font-bold text-ink">Trending Components</h2>
         <a href="{% url 'store' %}" class="cc-btn cc-btn-secondary cc-btn-sm">See More</a>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {% for product in trending_products|slice:":4" %}
-          {% include 'store/partials/product_card.html' with product=product %}
-        {% endfor %}
-      </div>
+      {% if trending_products %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {% for product in trending_products|slice:":4" %}
+            {% include 'store/partials/product_card.html' with product=product %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="cc-card p-6 text-center text-xs sm:text-sm text-muted">
+          No trending hardware components are listed yet.
+        </div>
+      {% endif %}
     </div>
 
     <div class="lg:col-span-4">
@@ -168,7 +206,7 @@
                 {% endif %}
               </div>
             </div>
-            <button type="button" data-product="{{ offer.id }}" data-action="add" class="cc-btn cc-btn-secondary cc-btn-sm px-2.5 update-cart shrink-0" title="Add to cart" aria-label="Add {{ offer.name }} to cart">
+            <button type="button" data-product="{{ offer.id }}" data-action="add" {% if not offer.in_stock %}disabled{% endif %} class="cc-btn cc-btn-secondary cc-btn-sm px-2.5 update-cart shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" title="Add to cart" aria-label="Add {{ offer.name }} to cart">
               <i data-lucide="shopping-cart" class="w-4 h-4"></i>
             </button>
           </div>

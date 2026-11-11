@@ -1,0 +1,105 @@
+{% extends "management/base_portal.html" %}
+{% load static %}
+
+{% block portal_title %}{% if is_create %}New Category{% else %}Edit {{ category.name }}{% endif %}{% endblock %}
+{% block page_heading %}{% if is_create %}Create Hardware Category{% else %}Edit Category: {{ category.name }}{% endif %}{% endblock %}
+{% block page_subheading %}Categories appear immediately across product creation, storefront filters, and compatible PC Builder slots{% endblock %}
+
+{% block portal_content %}
+<div class="mb-5 flex flex-wrap items-center justify-between gap-2">
+  <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i><span>Back to Categories</span>
+  </a>
+  {% if not is_create %}
+    <span class="text-xs text-muted cc-mono">Associated products: <strong class="text-ink">{{ product_count }}</strong></span>
+  {% endif %}
+</div>
+
+<form method="post" class="cc-card overflow-hidden max-w-3xl">
+  {% csrf_token %}
+  <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink">
+    Category Details &amp; Storefront Mapping
+  </div>
+  <div class="p-5 grid grid-cols-1 sm:grid-cols-12 gap-4">
+    <div class="sm:col-span-6">
+      <label for="id_name" class="cc-label">Category Name *</label>
+      {{ form.name }}
+      {% if form.name.errors %}<div class="text-xs text-red-400 mt-1">{{ form.name.errors }}</div>{% endif %}
+    </div>
+    <div class="sm:col-span-6">
+      <label for="id_slug" class="cc-label">URL Slug (Auto-generated if blank)</label>
+      {{ form.slug }}
+      {% if form.slug.errors %}<div class="text-xs text-red-400 mt-1">{{ form.slug.errors }}</div>{% endif %}
+      <p class="text-[11px] text-muted mt-1">Lowercase letters, numbers, and hyphens only.</p>
+    </div>
+
+    <div class="sm:col-span-5">
+      <label for="id_component_slot" class="cc-label">PC Builder Slot Mapping *</label>
+      {{ form.component_slot }}
+      {% if form.component_slot.errors %}<div class="text-xs text-red-400 mt-1">{{ form.component_slot.errors }}</div>{% endif %}
+    </div>
+    <div class="sm:col-span-4">
+      <label for="id_icon_class" class="cc-label">Category Icon</label>
+      {{ form.icon_class }}
+      {% if form.icon_class.errors %}<div class="text-xs text-red-400 mt-1">{{ form.icon_class.errors }}</div>{% endif %}
+    </div>
+    <div class="sm:col-span-3">
+      <label for="id_display_order" class="cc-label">Display Order</label>
+      {{ form.display_order }}
+      {% if form.display_order.errors %}<div class="text-xs text-red-400 mt-1">{{ form.display_order.errors }}</div>{% endif %}
+    </div>
+
+    <div class="sm:col-span-12">
+      <label for="id_description" class="cc-label">Description</label>
+      {{ form.description }}
+      {% if form.description.errors %}<div class="text-xs text-red-400 mt-1">{{ form.description.errors }}</div>{% endif %}
+    </div>
+
+    <div class="sm:col-span-12 flex flex-wrap gap-6 pt-1">
+      <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+        {{ form.is_active }}
+        <span>Active (available on storefront &amp; product creation)</span>
+      </label>
+      <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+        {{ form.show_in_nav }}
+        <span>Show in storefront navigation menu</span>
+      </label>
+      <label class="flex items-center gap-2 text-sm text-ink cursor-pointer">
+        {{ form.is_pc_component }}
+        <span>Core PC Builder hardware component</span>
+      </label>
+    </div>
+  </div>
+  <div class="px-5 py-4 border-t border-border bg-elevated/30 flex flex-wrap items-center justify-end gap-2.5">
+    <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Cancel</a>
+    <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm">
+      <i data-lucide="save" class="w-4 h-4"></i>
+      <span>{% if is_create %}Create Category{% else %}Save Changes{% endif %}</span>
+    </button>
+  </div>
+</form>
+
+{% if is_create %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const nameInput = document.getElementById('id_name');
+  const slugInput = document.getElementById('id_slug');
+  if (!nameInput || !slugInput) return;
+
+  let slugTouched = Boolean(slugInput.value.trim());
+  slugInput.addEventListener('input', () => {
+    slugTouched = Boolean(slugInput.value.trim());
+  });
+
+  nameInput.addEventListener('input', () => {
+    if (slugTouched) return;
+    slugInput.value = nameInput.value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

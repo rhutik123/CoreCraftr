@@ -7,6 +7,14 @@ app_name = 'management'
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
 
+    # Categories
+    path('categories/', views.category_list, name='category_list'),
+    path('categories/add/', views.category_create, name='category_create'),
+    path('categories/init-starters/', views.category_init_starters, name='category_init_starters'),
+    path('categories/<int:category_id>/edit/', views.category_edit, name='category_edit'),
+    path('categories/<int:category_id>/toggle-active/', views.category_toggle_active, name='category_toggle_active'),
+    path('categories/<int:category_id>/delete/', views.category_delete, name='category_delete'),
+
     # Products & Media & Dynamic Specifications
     path('products/', views.product_list, name='product_list'),
     path('products/add/', views.product_create, name='product_create'),

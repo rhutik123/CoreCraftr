@@ -19,8 +19,8 @@ from .models import (
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'component_slot', 'is_pc_component', 'display_order', 'show_in_nav')
-    list_filter = ('component_slot', 'is_pc_component', 'show_in_nav')
+    list_display = ('name', 'slug', 'component_slot', 'is_pc_component', 'display_order', 'show_in_nav', 'is_active')
+    list_filter = ('component_slot', 'is_pc_component', 'show_in_nav', 'is_active')
     search_fields = ('name', 'slug')
     prepopulated_fields = {'slug': ('name',)}
     ordering = ('display_order', 'name')

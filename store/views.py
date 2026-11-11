@@ -78,7 +78,7 @@ def store(request):
     active_category = None
     cat_slug = (request.GET.get('category') or '').strip()
     if cat_slug:
-        active_category = Category.objects.filter(slug=cat_slug).first()
+        active_category = Category.objects.filter(slug=cat_slug, is_active=True).first()
 
     wishlist_ids = set()
     if request.user.is_authenticated:
@@ -102,7 +102,7 @@ def store(request):
 
 def category_detail(request, slug):
     """Redirect or render category-filtered store view cleanly."""
-    category = get_object_or_404(Category, slug=slug)
+    category = get_object_or_404(Category, slug=slug, is_active=True)
     params = request.GET.copy()
     params['category'] = category.slug
     request.GET = params
@@ -262,19 +262,31 @@ def swap_cart_item(request):
 @require_POST
 def updateItem(request):
     """JSON/POST endpoint for adding, incrementing, decrementing, setting, or removing cart items."""
+    content_type = (request.content_type or '').lower()
     try:
-        data = json.loads(request.body.decode('utf-8')) if request.content_type == 'application/json' else request.POST
+        data = json.loads(request.body.decode('utf-8')) if 'application/json' in content_type else request.POST
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({'success': False, 'message': 'Invalid JSON payload.'}, status=400)
 
-    product_id = data.get('productID') or data.get('product_id')
+    if not hasattr(data, 'get'):
+        return JsonResponse({'success': False, 'message': 'Invalid JSON payload.'}, status=400)
+
+    product_id = data.get('productID') or data.get('productId') or data.get('product_id')
     action = data.get('action', 'add')
     qty = data.get('quantity')
 
     if not product_id:
         return JsonResponse({'success': False, 'message': 'Missing product ID.'}, status=400)
 
-    product = get_object_or_404(Product, id=product_id)
+    try:
+        product_id_int = int(product_id)
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'message': 'Invalid product ID.'}, status=400)
+
+    product = Product.objects.filter(id=product_id_int).first()
+    if not product:
+        return JsonResponse({'success': False, 'message': 'Product not found.'}, status=404)
+
     user_cart = cart_service.get_or_create_cart(request)
     parsed_qty = int(qty) if qty is not None and str(qty).isdigit() else None
     result = cart_service.update_cart_item(user_cart, product, action=action, quantity=parsed_qty)
@@ -285,6 +297,7 @@ def updateItem(request):
             'success': result.success,
             'message': result.message,
             'item_quantity': result.item_quantity,
+            'cart_total': result.cart_total_items,
             'cart_total_items': result.cart_total_items,
             'cart_subtotal': result.cart_subtotal,
         },

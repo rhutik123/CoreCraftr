@@ -50,10 +50,22 @@
       {% csrf_token %}
       <input type="hidden" id="id_ai_draft_id" name="ai_draft_id" value="">
 
-      <!-- 1. Product Identity -->
+      <!-- 1. Product Identity & Integrated AI Research -->
+      {% if not has_categories %}
+        <div class="cc-alert cc-alert-warning flex-col items-start gap-2">
+          <div class="font-bold text-sm flex items-center gap-2">
+            <i data-lucide="folder-tree" class="w-4 h-4"></i>
+            <span>No Active Hardware Categories Available</span>
+          </div>
+          <p class="text-xs">Create at least one active category or initialize starter categories before adding products.</p>
+          <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-primary cc-btn-sm">Open Category Management</a>
+        </div>
+      {% endif %}
+
       <div class="cc-card overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink">
-          1. Product Identity &amp; Visibility
+        <div class="px-5 py-3.5 border-b border-border bg-elevated/50 flex flex-wrap items-center justify-between gap-2">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-ink">1. Product Identity &amp; Specification Research</span>
+          <span class="cc-badge cc-badge-neutral text-[10px]">Human Review Required</span>
         </div>
         <div class="p-5 grid grid-cols-1 sm:grid-cols-12 gap-4">
           <div class="sm:col-span-8">
@@ -91,6 +103,39 @@
             <label for="id_new_brand_name" class="cc-label">Or Create New Brand</label>
             {{ form.new_brand_name }}
           </div>
+
+          <!-- Integrated AI Specification Research Workflow -->
+          <div class="sm:col-span-12 rounded-xl border border-tech/35 bg-tech/5 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-xs font-bold text-tech-ink flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                <span>Online Specification Lookup (Optional Assistant)</span>
+              </div>
+              <span class="text-[11px] text-muted">Prioritizes official manufacturer datasheets &bull; Never invents prices, SKUs, or stock</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div class="md:col-span-8">
+                <label for="id_ai_reference_url" class="cc-label">Optional Manufacturer Product / Datasheet URL</label>
+                <input type="url" id="id_ai_reference_url" class="cc-input cc-input-sm" placeholder="https://www.amd.com/en/products/...">
+              </div>
+              <div class="md:col-span-4">
+                <button type="button" id="btn-ai-research" class="cc-btn cc-btn-tech cc-btn-sm w-full">
+                  <i data-lucide="search" class="w-4 h-4"></i>
+                  <span>Research Specifications with AI</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="ai-research-results" class="hidden"></div>
+
+            <div id="ai-approval-confirm-box" class="cc-alert cc-alert-info text-xs hidden">
+              <label for="id_confirm_ai_approval" class="flex items-start gap-2.5 font-semibold text-ink cursor-pointer">
+                <input class="cc-checkbox mt-0.5" type="checkbox" id="id_confirm_ai_approval" name="confirm_ai_approval" value="1">
+                <span>I reviewed and approve these AI-researched specifications before saving the product.</span>
+              </label>
+            </div>
+          </div>
+
           <div class="sm:col-span-12">
             <label for="id_short_description" class="cc-label">Short Description</label>
             {{ form.short_description }}
@@ -168,49 +213,11 @@
         </div>
       </div>
 
-      <!-- 4. AI Spec Research Assistant -->
-      <div class="cc-card overflow-hidden border-tech/40">
-        <div class="px-5 py-3.5 border-b border-border bg-tech/10 flex flex-wrap items-center justify-between gap-2">
-          <span class="text-xs font-extrabold uppercase tracking-wider text-tech-ink flex items-center gap-2">
-            <i data-lucide="sparkles" class="w-4 h-4"></i>
-            <span>4. AI Product Specification Research (Optional Draft Helper)</span>
-          </span>
-          <span class="cc-badge cc-badge-neutral text-[10px]">Never Auto-Publishes or Sets Price/Stock</span>
-        </div>
-        <div class="p-5 space-y-3">
-          <p class="text-xs text-muted leading-relaxed">
-            Uses your entered Product Name, Brand, Model Number, and Category schema to research candidate technical specs.
-            Unknown or conflicting specs are flagged instead of guessed. Staff must review and click <strong class="text-ink">Save Product</strong>.
-          </p>
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div class="md:col-span-8">
-              <label for="id_ai_reference_url" class="cc-label">Optional Official Datasheet / Manufacturer URL</label>
-              <input type="url" id="id_ai_reference_url" class="cc-input cc-input-sm" placeholder="https://www.amd.com/...">
-            </div>
-            <div class="md:col-span-4">
-              <button type="button" id="btn-ai-research" class="cc-btn cc-btn-tech cc-btn-sm w-full">
-                <i data-lucide="search" class="w-4 h-4"></i>
-                <span>Research Specifications with AI</span>
-              </button>
-            </div>
-          </div>
-
-          <div id="ai-research-results" class="hidden mt-3"></div>
-
-          <div id="ai-approval-confirm-box" class="cc-alert cc-alert-info text-xs hidden">
-            <label for="id_confirm_ai_approval" class="flex items-start gap-2.5 font-semibold text-ink cursor-pointer">
-              <input class="cc-checkbox mt-0.5" type="checkbox" id="id_confirm_ai_approval" name="confirm_ai_approval" value="1">
-              <span>I reviewed and verified these AI-suggested specifications before saving to the product record.</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- 5. Dynamic Category Hardware Specs -->
+      <!-- 4. Technical Specifications -->
       <div class="cc-card overflow-hidden">
         <div class="px-5 py-3.5 border-b border-border bg-elevated/50 flex flex-wrap items-center justify-between gap-2">
           <span class="text-xs font-extrabold uppercase tracking-wider text-ink">
-            5. Category Hardware Specifications (PC Builder &amp; Compatibility Engine)
+            4. Technical Specifications (PC Builder &amp; Compatibility Engine)
           </span>
           <span class="text-[11px] text-muted">Blank = Unknown (never assumed compatible)</span>
         </div>
@@ -218,12 +225,17 @@
           <div id="dynamic-spec-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {% for row in spec_rows %}
               <div>
-                <label for="spec_input_{{ row.name }}" class="cc-label">
-                  {{ row.label }}
-                  {% if row.compatibility_critical %}
-                    <span class="cc-badge cc-badge-warning text-[10px] ml-1.5 spec-critical-badge">Compatibility</span>
-                  {% endif %}
-                </label>
+                <div class="flex flex-wrap items-center justify-between gap-1 mb-1">
+                  <label for="spec_input_{{ row.name }}" class="cc-label mb-0">
+                    {{ row.label }}
+                    {% if row.compatibility_critical %}
+                      <span class="cc-badge cc-badge-warning text-[10px] ml-1 spec-critical-badge">Compatibility</span>
+                    {% endif %}
+                  </label>
+                  <span class="text-[10px] spec-status-badge {% if row.current_value %}cc-badge cc-badge-neutral{% endif %}" data-spec-status-for="{{ row.name }}">
+                    {% if row.current_value %}Manually entered{% endif %}
+                  </span>
+                </div>
                 {% if row.type == 'bool' %}
                   <select class="cc-select cc-input-sm spec-live-input" id="spec_input_{{ row.name }}" name="spec_{{ row.name }}" data-label="{{ row.label }}" data-unit="">
                     <option value="" {% if row.current_value == '' %}selected{% endif %}>Unknown / Unspecified</option>

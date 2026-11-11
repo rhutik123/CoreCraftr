@@ -190,6 +190,18 @@ class AIResearchDraft(models.Model):
         (VERIFICATION_UNAVAILABLE, 'Unavailable'),
     ]
 
+    MATCH_EXACT = 'exact'
+    MATCH_AMBIGUOUS = 'ambiguous'
+    MATCH_NOT_FOUND = 'not_found'
+    MATCH_UNAVAILABLE = 'unavailable'
+
+    MATCH_STATUS_CHOICES = [
+        (MATCH_EXACT, 'Exact Product Identified'),
+        (MATCH_AMBIGUOUS, 'Ambiguous / Possible Typo'),
+        (MATCH_NOT_FOUND, 'Product Not Confidently Identified'),
+        (MATCH_UNAVAILABLE, 'Research Unavailable'),
+    ]
+
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -216,6 +228,8 @@ class AIResearchDraft(models.Model):
     model_number = models.CharField(max_length=120, blank=True)
     reference_url = models.URLField(max_length=500, blank=True)
     status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    match_status = models.CharField(max_length=24, choices=MATCH_STATUS_CHOICES, default=MATCH_EXACT)
+    identified_name = models.CharField(max_length=255, blank=True)
     verification_status = models.CharField(
         max_length=32,
         choices=VERIFICATION_CHOICES,
@@ -228,6 +242,8 @@ class AIResearchDraft(models.Model):
     missing_fields = models.JSONField(default=list, blank=True)
     conflicting_fields = models.JSONField(default=list, blank=True)
     rejected_fields = models.JSONField(default=list, blank=True)
+    suggested_corrections = models.JSONField(default=list, blank=True)
+    field_statuses = models.JSONField(default=dict, blank=True)
     summary_note = models.TextField(blank=True)
     raw_provider_status = models.CharField(max_length=80, blank=True)
     approved_by = models.ForeignKey(

@@ -15,7 +15,9 @@
   <div class="cc-card p-4">
     <div class="text-xs text-muted font-medium">Active Categories</div>
     <div class="mt-1.5 text-2xl font-extrabold text-ink cc-mono">{{ metrics.active_categories_count }}</div>
-    <div class="text-[11px] text-muted mt-1">of {{ metrics.total_categories_count }} categories</div>
+    <div class="text-[11px] text-muted mt-1">
+      <a href="{% url 'management:category_list' %}" class="text-tech-ink hover:underline">of {{ metrics.total_categories_count }} categories &rarr;</a>
+    </div>
   </div>
   <div class="cc-card p-4">
     <div class="text-xs text-muted font-medium">Low Stock</div>
@@ -52,6 +54,9 @@
 <div class="flex flex-wrap gap-2.5 mb-6">
   <a href="{% url 'management:product_create' %}" class="cc-btn cc-btn-primary cc-btn-sm">
     <i data-lucide="plus" class="w-4 h-4"></i><span>Add Product</span>
+  </a>
+  <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+    <i data-lucide="folder-tree" class="w-4 h-4"></i><span>Manage Categories</span>
   </a>
   <a href="{% url 'management:inventory_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
     <i data-lucide="sliders-horizontal" class="w-4 h-4"></i><span>Adjust Stock</span>

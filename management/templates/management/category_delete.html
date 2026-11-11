@@ -1,0 +1,78 @@
+{% extends "management/base_portal.html" %}
+
+{% block portal_title %}Delete Category{% endblock %}
+{% block page_heading %}Delete Category: {{ category.name }}{% endblock %}
+{% block page_subheading %}Verify product impact and safely reassign existing products before removing a category{% endblock %}
+
+{% block portal_content %}
+<div class="mb-5">
+  <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i><span>Back to Categories</span>
+  </a>
+</div>
+
+<div class="cc-card overflow-hidden max-w-2xl">
+  <div class="px-5 py-3.5 border-b border-border bg-elevated/50 flex items-center justify-between">
+    <span class="text-xs font-extrabold uppercase tracking-wider text-ink">Safe Category Removal</span>
+    <span class="cc-badge {% if product_count > 0 %}cc-badge-warning{% else %}cc-badge-compatible{% endif %} cc-mono">
+      {{ product_count }} product{{ product_count|pluralize }}
+    </span>
+  </div>
+
+  <form method="post" class="p-5 space-y-4">
+    {% csrf_token %}
+
+    {% if product_count > 0 %}
+      <div class="cc-alert cc-alert-warning flex-col items-start gap-1">
+        <div class="font-bold text-sm">Category Contains {{ product_count }} Associated Product(s)</div>
+        <p class="text-xs leading-relaxed">
+          To preserve catalog integrity, this category cannot be deleted directly while products belong to it.
+          Select a replacement category below to safely reassign all {{ product_count }} product(s) before deletion,
+          or deactivate the category instead.
+        </p>
+      </div>
+
+      {% if other_categories %}
+        <div>
+          <label for="id_reassign_to" class="cc-label">Reassign {{ product_count }} Product(s) To *</label>
+          <select id="id_reassign_to" name="reassign_to" required class="cc-select">
+            <option value="">-- Select replacement category --</option>
+            {% for target in other_categories %}
+              <option value="{{ target.id }}">{{ target.name }} ({{ target.slug }}){% if not target.is_active %} [Inactive]{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border">
+          <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Cancel</a>
+          <button type="submit" class="cc-btn cc-btn-danger cc-btn-sm">
+            <i data-lucide="arrow-right-left" class="w-4 h-4"></i>
+            <span>Reassign Products &amp; Delete Category</span>
+          </button>
+        </div>
+      {% else %}
+        <div class="cc-alert cc-alert-danger flex-col items-start gap-1">
+          <div class="font-bold text-sm">No Destination Category Available</div>
+          <p class="text-xs">Create another category first if you want to reassign these products, or cancel and deactivate "{{ category.name }}" instead.</p>
+        </div>
+        <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border">
+          <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Cancel</a>
+          <a href="{% url 'management:category_create' %}" class="cc-btn cc-btn-primary cc-btn-sm">Create Target Category</a>
+        </div>
+      {% endif %}
+    {% else %}
+      <p class="text-sm text-muted">
+        Category <strong class="text-ink">{{ category.name }}</strong> (<code class="cc-mono">{{ category.slug }}</code>) currently has
+        <strong class="text-ink">0 associated products</strong>. Deleting it removes it from category listings and logs the change to Audit Logs.
+      </p>
+      <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border">
+        <a href="{% url 'management:category_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Cancel</a>
+        <button type="submit" class="cc-btn cc-btn-danger cc-btn-sm">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span>Confirm Delete Category</span>
+        </button>
+      </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

@@ -34,11 +34,12 @@ Built as an evolution of a standard Django storefront (`https://github.com/rhuti
 ### Catalog-Grounded AI Engine (`ai_engine`)
 - **Build Recommendations (`BuildRecommendationOrchestrator`)**: Optional OpenAI or Gemini recommendations strictly gated against active, in-stock catalog SKUs and validated through `CompatibilityEngine`.
 - **Cart Conflict Advisory (`CartCompatibilityAdvisor`)**: Explains cart incompatibilities and evaluates verified replacement pairs cleanly.
-- **Product Specification Research (`ProductSpecResearchService`)**: Assists portal staff by drafting schema-aligned technical specs with manufacturer vs third-party source tagging, conflict warnings, forbidden commercial key stripping, and mandatory human approval before saving.
+- **Product Specification Research (`ProductSpecResearchService`)**: Integrated directly inside product creation/editing (`/management/products/add/`), researching online specs via configurable web search (`tavily`, `serper`, `google_cse`) and public manufacturer datasheet extraction (`reference_url`), distinguishing exact matches, typo/ambiguous candidates (requiring explicit staff confirmation), and unidentified products (`"Product not confidently identified."`), tagging per-field status (`Sourced`, `Needs verification`, `Conflicting sources`, `Not found`, `Manually entered`), stripping forbidden commercial keys, and preserving manual entry at all times.
 - **Automatic Deterministic Fallback**: Every AI entry point falls back seamlessly to deterministic logic or manual workflows when `AI_PROVIDER=none`, keys are absent, or AI output fails validation.
 
 ### Owner & Inventory Management Portal (`management`)
-- **Role-Based Staff Portal (`/management/`)**: Completely isolated from customer navigation. **Owners** (Django superusers) control everything including staff provisioning/revocation (`/management/users/`) and read-only audit logs (`/management/audit/`), while **Inventory Managers** (synced `Inventory Manager` group) manage products, media, specs, stock, CSVs, and valuation reports without access to `/management/users/`, `/management/audit/`, or `/admin/`.
+- **Role-Based Staff Portal (`/management/`)**: Completely isolated from customer navigation. **Owners** (Django superusers) control everything including staff provisioning/revocation (`/management/users/`) and read-only audit logs (`/management/audit/`), while **Inventory Managers** (synced `Inventory Manager` group) manage categories, products, media, specs, stock, CSVs, and valuation reports without access to `/management/users/`, `/management/audit/`, or `/admin/`.
+- **Hardware Category Management (`/management/categories/`)**: Authorised staff can view categories with associated product counts, search and filter, create or edit categories with slug validation and case-insensitive duplicate guards, activate/deactivate visibility, safely block deleting non-empty categories unless reassigning products to another category, or idempotently initialize starter categories without seeding demo products.
 - **Product, Media & Spec Studio**: Enforces unique SKUs, surfaces advisory duplicate warnings, synchronizes `draft` / `published` / `archived` visibility cleanly without erasing order history, validates gallery image binaries (`JPEG`, `PNG`, `WEBP` via Pillow, configurable max byte size), and renders dynamic category-specific compatibility spec fields (`management.spec_schemas`).
 - **Atomic Stock Control & Audit Trail**: Row-locked stock adjustments (`add`, `subtract`, `set`) with optimistic version tokens, negative/reserved guards, `StockMovement` logs (including automatic `order_deduction` records at checkout), `PriceChangeLog`, and append-only immutable `AuditLog`.
 - **Two-Step CSV Import / Export & Reports (`/management/import-export/`, `/management/reports/`)**: Validates up to 2,000 rows (`5 MB` max) in a preview batch (`CSVImportBatch`) before confirming updates, exports catalog + spec columns cleanly, and computes inventory valuation strictly across SKUs with verified `cost_price`.
@@ -67,18 +68,18 @@ Verified versions installed and used in this repository:
 CoreCraftr uses a modular monolith layered by domain (`models` -> `services` -> `views` / `api_views` -> `templates`). Detailed schema continuity, compatibility rule groups, and portal workflows live in [ARCHITECTURE.md](ARCHITECTURE.md), and the CSS token / component system lives in [FRONTEND_DESIGN.md](FRONTEND_DESIGN.md).
 
 - **`corecraftr/`**: Django project configuration package (`settings.py`, `urls.py`, `wsgi.py`, `asgi.py`, Admin branding).
-- **`store/`**: Hardware catalogue (`Product`, `Category`, `Brand`, `HardwareSpecProfile`, `ProductImage`), search/filtering, comparison, session-merged cart & cart compatibility bridge (`cart_compatibility.py`), transactional checkout/orders, wishlist, customer accounts, and `seed_hardware_catalog`.
+- **`store/`**: Hardware catalogue (`Product`, `Category`, `Brand`, `HardwareSpecProfile`, `ProductImage`), search/filtering, comparison, session-merged cart & cart compatibility bridge (`cart_compatibility.py`), transactional checkout/orders, wishlist, customer accounts, `init_categories`, and `seed_hardware_catalog`.
 - **`pc_builder/`**: `PCBuild` & `BuildComponent` persistence, platform support rules (`ChipsetCPUSupport`, `MotherboardCPUSupport`), `CompatibilityEngine`, `SmartAlternativesService`, Beginner/Expert workflows, and DRF API views.
 - **`ai_engine/`**: `AIProviderClient`, `DeterministicBuildRecommender`, `BuildRecommendationOrchestrator`, `CartCompatibilityAdvisor`, and `ProductSpecResearchService` + `WebSearchClient`.
-- **`management/`**: Portal RBAC (`PortalPermission`, `permissions.py`), stock/price/audit/AI-draft models, category spec schemas (`spec_schemas.py`), CSV preview importer/exporter, valuation reporting, portal templates/JS, and `seed_portal_demo`.
+- **`management/`**: Portal RBAC (`PortalPermission`, `permissions.py`), stock/price/audit/AI-draft models, category management (`category_service.py`), category spec schemas (`spec_schemas.py`), CSV preview importer/exporter, valuation reporting, portal templates/JS, and `seed_portal_demo`.
 
 ```text
 CoreCraftr/
 ├── corecraftr/                  # Project settings, URLs, WSGI/ASGI, Admin setup
 ├── store/                       # Storefront, catalogue, cart, checkout, accounts
-│   ├── management/commands/     # seed_hardware_catalog
-│   ├── migrations/              # 0001–0008 schema & legacy data backfill
-│   ├── services/                # catalog, cart, cart_compatibility, comparison, order
+│   ├── management/commands/     # init_categories, seed_hardware_catalog
+│   ├── migrations/              # 0001–0009 schema & legacy data backfill
+│   ├── services/                # catalog, category_init, cart, cart_compatibility, comparison, order
 │   ├── templatetags/            # |inr, |inr_whole, |lucide_icon filters
 │   └── templates/store/         # Storefront, detail, compare, cart, checkout, auth
 ├── pc_builder/                  # Dual-mode PC Builder & deterministic engine
@@ -89,9 +90,9 @@ CoreCraftr/
 │   └── services/                # recommender, spec_researcher
 ├── management/                  # Owner & Inventory Manager workspace (/management/)
 │   ├── management/commands/     # seed_portal_demo
-│   ├── migrations/              # 0001_initial
-│   ├── services/                # product, image, inventory, csv, report, user, audit, ai_spec
-│   └── templates/management/    # Dashboard, product form, inventory, import/export, reports, users, audit
+│   ├── migrations/              # 0001–0002 portal RBAC, audit, AI draft fields
+│   ├── services/                # category, product, image, inventory, csv, report, user, audit, ai_spec
+│   └── templates/management/    # Dashboard, categories, product form, inventory, import/export, reports, users, audit
 ├── frontend_src/                # Tailwind CSS v4 input & theme variables (tailwind.css)
 ├── templates/                   # Shared base.html, error pages (403/404/500), UI partials
 ├── static/                      # Compiled app.min.css, JS, Lucide vendor bundle, SVG category marks
@@ -130,8 +131,11 @@ Copy-Item .env.example .env
 #    - Option A (PostgreSQL): Create your database and set DB_ENGINE=postgresql and DB_PASSWORD in .env
 #    - Option B (Local SQLite fallback): Leave DB_PASSWORD unset or set DB_ENGINE=sqlite
 
-# 8. Run database migrations and seed starter hardware catalog
+# 8. Run database migrations and initialize hardware categories (recommended)
 python manage.py migrate
+# Option A (Recommended clean start — starter categories only, zero sample products, preserves owner edits):
+python manage.py init_categories
+# Option B (Full demo storefront — starter categories + sample hardware catalog & compatibility rules):
 python manage.py seed_hardware_catalog
 # Optional: seed portal demo SKUs, stock ledger movements, demo order & staff/customer accounts:
 python manage.py seed_portal_demo
@@ -204,10 +208,10 @@ Settings load via `python-dotenv` from `.env` (see [.env.example](.env.example))
 
 ## AI Configuration
 
-- **Configuration**: Set `AI_PROVIDER` (`openai` or `gemini`), `AI_API_KEY`, and `AI_MODEL` in `.env` (plus optional `AI_SEARCH_PROVIDER` / `AI_SEARCH_API_KEY` for Portal Spec Research). Keep `AI_PROVIDER=none` to operate completely offline.
+- **Configuration**: Set `AI_PROVIDER` (`openai` or `gemini`), `AI_API_KEY`, and `AI_MODEL` in `.env` (plus optional `AI_SEARCH_PROVIDER`=`tavily`/`serper`/`google_cse` and `AI_SEARCH_API_KEY` for online product specification research). Keep `AI_PROVIDER=none` to operate completely offline without any external calls.
 - **Recommendations (`BuildRecommendationOrchestrator` & `CartCompatibilityAdvisor`)**: Prompts request structured JSON component picks/advice, then verify every proposed `product_id` against active, in-stock DB products in the target category slot and validate the resulting build through `CompatibilityEngine`. Locked user parts are preserved; hallucinated IDs or incompatible combinations are rejected.
-- **Specification Research (`ProductSpecResearchService`)**: Constrains proposed fields to category schemas (`management.spec_schemas`), strips forbidden commercial keys (`sku`, `price`, `cost_price`, `quantity`, `status`), tags `manufacturer` vs `third_party` URLs with SSRF guardrails, surfaces conflicting or missing fields instead of guessing values, stores results in `AIResearchDraft`, and requires explicit staff approval before saving specs.
-- **Fallback Behaviour**: Whenever `AI_PROVIDER=none`, an API key is missing, a timeout occurs, or validation rejects an AI response, CoreCraftr falls back transparently to `DeterministicBuildRecommender`, deterministic cart swaps, or manual portal specification entry.
+- **Integrated Product Specification Research (`ProductSpecResearchService`)**: Triggered directly from the Identity section of `/management/products/add/` and `/management/products/<id>/`. Prioritizes official manufacturer pages/datasheets (`WebSearchClient` + safe public `reference_url` extraction with SSRF protection), distinguishes exact product matches from ambiguous/typo candidates (requiring confirmation) and unidentified queries (`"Product not confidently identified."`), constrains proposed fields to `management.spec_schemas`, strips forbidden commercial keys (`sku`, `price`, `cost_price`, `quantity`, `status`), tags per-field statuses (`Sourced`, `Needs verification`, `Conflicting sources`, `Not found`, `Manually entered`), never overwrites manual entries without explicit staff approval, and stores reviewable drafts in `AIResearchDraft`.
+- **Fallback Behaviour**: Whenever `AI_PROVIDER=none`, an API key is missing, a search provider is unreachable, or validation rejects an AI response, CoreCraftr falls back transparently to `DeterministicBuildRecommender`, deterministic cart swaps, or non-blocking manual specification entry in the product form.
 
 ---
 
@@ -224,7 +228,7 @@ python manage.py collectstatic --noinput
 python manage.py check
 python manage.py makemigrations --check --dry-run
 
-# 4. Run full automated pytest suite (68 tests across all apps)
+# 4. Run full automated pytest suite (81 tests across all apps)
 pytest -v
 ```
 

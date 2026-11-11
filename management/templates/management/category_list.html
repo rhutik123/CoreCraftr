@@ -1,0 +1,187 @@
+{% extends "management/base_portal.html" %}
+{% load store_extras %}
+
+{% block portal_title %}Categories{% endblock %}
+{% block page_heading %}Hardware Category Management{% endblock %}
+{% block page_subheading %}Create, edit, activate/deactivate, map PC Builder slots, and safely reassign or delete categories{% endblock %}
+
+{% block portal_content %}
+<!-- Summary Strip -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-5">
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Total Categories</div>
+    <div class="mt-1 text-2xl font-extrabold text-ink cc-mono">{{ total_categories_count }}</div>
+  </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Active Categories</div>
+    <div class="mt-1 text-2xl font-extrabold text-green-400 cc-mono">{{ active_categories_count }}</div>
+  </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Inactive Categories</div>
+    <div class="mt-1 text-2xl font-extrabold text-muted cc-mono">{{ total_categories_count|add:"-"|add:active_categories_count }}</div>
+  </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Missing Starter Categories</div>
+    <div class="mt-1 text-2xl font-extrabold {% if missing_starters_count %}text-amber-400{% else %}text-green-400{% endif %} cc-mono">{{ missing_starters_count }}</div>
+  </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<form method="get" class="cc-card p-4 mb-5">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+    <div class="lg:col-span-4">
+      <label for="cat-filter-q" class="cc-label">Search Name / Slug / Description</label>
+      <input id="cat-filter-q" type="text" name="q" value="{{ q }}" class="cc-input cc-input-sm" placeholder="Search categories...">
+    </div>
+    <div class="lg:col-span-2">
+      <label for="cat-filter-status" class="cc-label">Status</label>
+      <select id="cat-filter-status" name="status" class="cc-select cc-input-sm">
+        <option value="">All Statuses</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
+      </select>
+    </div>
+    <div class="lg:col-span-3">
+      <label for="cat-filter-slot" class="cc-label">PC Builder Slot</label>
+      <select id="cat-filter-slot" name="slot" class="cc-select cc-input-sm">
+        <option value="">All Slots</option>
+        {% for code, label in slot_choices %}
+          <option value="{{ code }}" {% if slot_filter == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="lg:col-span-2">
+      <label for="cat-filter-pc" class="cc-label">PC Builder Component</label>
+      <select id="cat-filter-pc" name="pc" class="cc-select cc-input-sm">
+        <option value="">All Types</option>
+        <option value="yes" {% if pc_filter == 'yes' %}selected{% endif %}>PC Component</option>
+        <option value="no" {% if pc_filter == 'no' %}selected{% endif %}>Peripheral / Other</option>
+      </select>
+    </div>
+    <div class="lg:col-span-1 flex gap-2">
+      <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm w-full">Filter</button>
+    </div>
+  </div>
+  {% if q or status_filter or slot_filter or pc_filter %}
+    <div class="mt-2.5 flex justify-end">
+      <a href="{% url 'management:category_list' %}" class="text-xs font-semibold text-tech-ink hover:underline">Clear Category Filters</a>
+    </div>
+  {% endif %}
+</form>
+
+<!-- Actions Toolbar -->
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <span class="text-xs font-medium text-muted cc-mono">Showing {{ categories|length }} category(ies)</span>
+  <div class="flex flex-wrap items-center gap-2">
+    {% if missing_starters_count > 0 %}
+      <form method="post" action="{% url 'management:category_init_starters' %}">
+        {% csrf_token %}
+        <button type="submit" class="cc-btn cc-btn-tech cc-btn-sm">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Initialize Starter Categories ({{ missing_starters_count }})</span>
+        </button>
+      </form>
+    {% endif %}
+    <a href="{% url 'management:category_create' %}" class="cc-btn cc-btn-primary cc-btn-sm">
+      <i data-lucide="plus" class="w-4 h-4"></i><span>New Category</span>
+    </a>
+  </div>
+</div>
+
+<!-- Categories Table -->
+<div class="cc-table-wrap">
+  <table class="cc-table">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Slug</th>
+        <th>Builder Slot</th>
+        <th>Order</th>
+        <th>Products</th>
+        <th>Navigation</th>
+        <th>Status</th>
+        <th class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat in categories %}
+        <tr>
+          <td>
+            <div class="flex items-center gap-3 min-w-[180px]">
+              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-elevated border border-border text-accent-ink">
+                <i data-lucide="{{ cat.icon_class|lucide_icon:'cpu' }}" class="w-4 h-4"></i>
+              </span>
+              <div class="min-w-0">
+                <div class="font-bold text-ink truncate">{{ cat.name }}</div>
+                {% if cat.description %}
+                  <div class="text-[11px] text-muted truncate max-w-[260px]">{{ cat.description }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td class="cc-mono text-xs text-muted">{{ cat.slug }}</td>
+          <td class="text-xs">
+            <div class="font-semibold text-ink">{{ cat.get_component_slot_display }}</div>
+            {% if cat.is_pc_component %}
+              <span class="text-[10px] text-tech-ink font-semibold">PC Builder Slot</span>
+            {% else %}
+              <span class="text-[10px] text-muted">General Catalog</span>
+            {% endif %}
+          </td>
+          <td class="cc-mono text-xs">{{ cat.display_order }}</td>
+          <td>
+            <span class="font-bold text-ink cc-mono">{{ cat.total_products }}</span>
+            <span class="text-[11px] text-muted cc-mono">({{ cat.published_products }} live)</span>
+          </td>
+          <td class="text-xs">
+            {% if cat.show_in_nav %}
+              <span class="cc-badge cc-badge-tech">Shown in Nav</span>
+            {% else %}
+              <span class="cc-badge cc-badge-neutral">Hidden in Nav</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if cat.is_active %}
+              <span class="cc-badge cc-badge-compatible">Active</span>
+            {% else %}
+              <span class="cc-badge cc-badge-neutral">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="text-right">
+            <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+              <a href="{% url 'management:category_edit' cat.id %}" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2.5 text-xs">
+                Edit
+              </a>
+              <form method="post" action="{% url 'management:category_toggle_active' cat.id %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2.5 text-xs">
+                  {% if cat.is_active %}Deactivate{% else %}Activate{% endif %}
+                </button>
+              </form>
+              <a href="{% url 'management:category_delete' cat.id %}" class="cc-btn cc-btn-danger cc-btn-sm py-1 px-2.5 text-xs">
+                Delete
+              </a>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-10">
+            <div class="text-sm font-bold text-ink mb-1">No hardware categories found</div>
+            <p class="text-xs text-muted mb-4">Create a custom category or initialize the 13 starter hardware categories without demo products.</p>
+            <div class="flex flex-wrap items-center justify-center gap-2">
+              <a href="{% url 'management:category_create' %}" class="cc-btn cc-btn-primary cc-btn-sm">
+                <i data-lucide="plus" class="w-4 h-4"></i><span>Create First Category</span>
+              </a>
+              <form method="post" action="{% url 'management:category_init_starters' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="cc-btn cc-btn-tech cc-btn-sm">Initialize Starter Categories</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

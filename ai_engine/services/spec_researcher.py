@@ -16,9 +16,12 @@ Strict non-negotiable guardrails:
 """
 
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
+from html.parser import HTMLParser
 import ipaddress
 import json
 import logging
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -145,8 +148,35 @@ def classify_source_origin(url: str, brand_name: str = '') -> str:
     return 'third_party'
 
 
+class _HTMLTextExtractor(HTMLParser):
+    """Minimal safe HTML-to-text extractor skipping script/style tags."""
+
+    def __init__(self):
+        super().__init__()
+        self._skip_depth = 0
+        self._chunks = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in ('script', 'style', 'noscript', 'svg'):
+            self._skip_depth += 1
+
+    def handle_endtag(self, tag):
+        if tag.lower() in ('script', 'style', 'noscript', 'svg') and self._skip_depth > 0:
+            self._skip_depth -= 1
+        elif tag.lower() in ('p', 'div', 'li', 'tr', 'br', 'h1', 'h2', 'h3', 'h4', 'td', 'th'):
+            self._chunks.append(' ')
+
+    def handle_data(self, data):
+        if self._skip_depth == 0 and data:
+            self._chunks.append(data)
+
+    def get_text(self) -> str:
+        joined = ' '.join(self._chunks)
+        return re.sub(r'\s+', ' ', joined).strip()
+
+
 class WebSearchClient:
-    """Configurable search client supporting Tavily, Serper, or Google Custom Search."""
+    """Configurable search client supporting Tavily, Serper, Google Custom Search, and safe reference URL extraction."""
 
     def __init__(self):
         self.provider = (getattr(settings, 'AI_SEARCH_PROVIDER', 'none') or 'none').strip().lower()
@@ -159,6 +189,29 @@ class WebSearchClient:
         if self.provider == 'google_cse':
             return bool(self.api_key and self.engine_id)
         return self.provider in ('tavily', 'serper') and bool(self.api_key)
+
+    def fetch_page_extract(self, url: str, max_chars: int = 3500) -> str:
+        """Fetch visible text excerpt from a validated public product/datasheet URL with strict caps."""
+        if not is_safe_public_http_url(url):
+            return ''
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={'User-Agent': 'CoreCraftrSpecResearch/1.0 (+https://corecraftr.local)'},
+                method='GET',
+            )
+            with urllib.request.urlopen(req, timeout=min(self.timeout, 8)) as resp:
+                ctype = (resp.headers.get('Content-Type') or '').lower()
+                if 'html' not in ctype and 'text/plain' not in ctype:
+                    return ''
+                raw_bytes = resp.read(512 * 1024)
+                decoded = raw_bytes.decode('utf-8', errors='replace')
+            parser = _HTMLTextExtractor()
+            parser.feed(decoded)
+            return parser.get_text()[:max_chars]
+        except Exception as exc:
+            logger.debug('Reference page fetch skipped for %s: %s', url, exc)
+            return ''
 
     def search(self, query: str, max_results: int = 5) -> list[dict]:
         """Run a web search against configured search API; return normalized source snippets."""
@@ -251,6 +304,10 @@ class SpecResearchResult:
     status: str  # draft / unavailable
     verification_status: str  # verified_manufacturer / mixed_sources / partial / unverified / unavailable
     confidence: str  # high / medium / low
+    match_status: str = 'exact'  # exact / ambiguous / not_found / unavailable
+    identified_name: str = ''
+    suggested_corrections: list = field(default_factory=list)
+    field_statuses: dict = field(default_factory=dict)
     proposed_specs: dict = field(default_factory=dict)
     custom_specs: dict = field(default_factory=dict)
     sources: list = field(default_factory=list)
@@ -307,6 +364,7 @@ class ProductSpecResearchService:
         model_number: str = '',
         reference_url: str = '',
         user_id: int | None = None,
+        confirmed_match: bool = False,
     ) -> SpecResearchResult:
         """
         Execute schema-constrained specification research and strictly validate output.
@@ -322,6 +380,7 @@ class ProductSpecResearchService:
                 status='unavailable',
                 verification_status='unavailable',
                 confidence='low',
+                match_status='unavailable',
                 summary_note='Provide a product name before requesting AI specification research.',
                 raw_provider_status='missing_product_name',
             )
@@ -333,6 +392,7 @@ class ProductSpecResearchService:
                 status='unavailable',
                 verification_status='unavailable',
                 confidence='low',
+                match_status='unavailable',
                 summary_note='Reference URL was rejected because only public http/https URLs are permitted.',
                 raw_provider_status='invalid_reference_url',
             )
@@ -343,6 +403,7 @@ class ProductSpecResearchService:
                 status='unavailable',
                 verification_status='unavailable',
                 confidence='low',
+                match_status='unavailable',
                 summary_note=(
                     'AI specification research is currently unconfigured (AI_PROVIDER=none or missing API key). '
                     'Enter specifications manually below.'
@@ -354,22 +415,43 @@ class ProductSpecResearchService:
         allowed_fields = {f['name']: f for f in slot_fields + SHARED_METADATA_FIELDS}
         critical_fields = get_critical_field_names(category_slot)
 
-        # Optional live web search context
+        # Optional live web search context, prioritizing official manufacturer sources first
         search_snippets = []
         if self.search_client.is_configured:
-            query_parts = [p for p in [brand_name, clean_name, model_number, 'official specifications'] if p]
-            search_snippets = self.search_client.search(' '.join(query_parts), max_results=5)
+            query_parts = [p for p in [brand_name, clean_name, model_number, 'official specifications datasheet'] if p]
+            raw_snippets = self.search_client.search(' '.join(query_parts), max_results=6)
+            search_snippets = sorted(
+                raw_snippets,
+                key=lambda item: 0 if classify_source_origin(item.get('url', ''), brand_name=brand_name) == 'manufacturer' else 1,
+            )
+
+        reference_page_extract = ''
+        if clean_ref_url:
+            reference_page_extract = self.search_client.fetch_page_extract(clean_ref_url)
+        elif search_snippets and self.search_client.is_configured:
+            top_url = search_snippets[0].get('url', '')
+            if top_url and classify_source_origin(top_url, brand_name=brand_name) == 'manufacturer':
+                reference_page_extract = self.search_client.fetch_page_extract(top_url)
 
         system_prompt = (
             'You are a precision computer hardware technical specification assistant for CoreCraftr. '
+            'Prioritize official manufacturer product pages and datasheets, then official docs, then reputable hardware databases. '
             'Return STRICT JSON ONLY with this exact top-level schema: '
-            '{"proposed_specs": {field: value}, "custom_specs": {label: value_str}, '
+            '{"match_status": "exact"|"ambiguous"|"not_found", '
+            '"identified_name": "...", '
+            '"suggested_corrections": [{"name": "...", "brand": "...", "reason": "...", "url": "https://..."}], '
+            '"proposed_specs": {field: value}, "custom_specs": {label: value_str}, '
             '"sources": [{"url": "https://...", "title": "...", "origin_type": "manufacturer"|"third_party"}], '
             '"missing_fields": ["field_name"], '
             '"conflicting_fields": [{"field": "field_name", "values": ["v1", "v2"], "note": "..."}], '
             '"confidence": "high"|"medium"|"low", '
             '"summary_note": "..."}. '
-            'NEVER invent, estimate, or guess unknown values — put unknown fields in missing_fields instead. '
+            'Situation rules: '
+            '1) Exact product identified: set match_status="exact", fill verified proposed_specs from sources, put unverified fields in missing_fields. '
+            '2) Possible typo or ambiguous query (for example "AMD Ryzan 5 7600X" unless user confirmed): set match_status="ambiguous", '
+            'put likely candidate product name(s) in suggested_corrections with reason, and keep proposed_specs empty until confirmed. '
+            '3) Product not found or fictional: set match_status="not_found", leave proposed_specs empty, never guess values, and explain clearly. '
+            'NEVER invent, estimate, or guess unknown values. '
             'NEVER output commercial fields such as sku, price, cost_price, quantity, stock, id, or status. '
             'If sources disagree on a spec, DO NOT pick one silently; include it in conflicting_fields. '
             'Use only field keys from the provided schema.'
@@ -391,6 +473,8 @@ class ProductSpecResearchService:
             'category_name': category_name or category_slot,
             'category_slot': category_slot,
             'reference_url': clean_ref_url,
+            'reference_page_extract': reference_page_extract,
+            'confirmed_match': bool(confirmed_match),
             'allowed_schema': schema_desc,
             'web_search_results': search_snippets,
         }
@@ -402,6 +486,7 @@ class ProductSpecResearchService:
                 status='unavailable',
                 verification_status='unavailable',
                 confidence='low',
+                match_status='unavailable',
                 summary_note=(
                     'AI specification provider did not return a valid structured response. '
                     'Please enter specifications manually.'
@@ -411,22 +496,51 @@ class ProductSpecResearchService:
 
         return self._validate_ai_response(
             raw_response=raw_response,
+            product_name=clean_name,
             allowed_fields=allowed_fields,
+            slot_fields=slot_fields,
             critical_fields=critical_fields,
             brand_name=brand_name,
             reference_url=clean_ref_url,
             search_snippets=search_snippets,
+            confirmed_match=confirmed_match,
         )
+
+    @staticmethod
+    def _looks_like_typo_or_mismatch(entered_name: str, identified_name: str) -> bool:
+        """Detect likely misspellings between user query and identified product name without flagging short prefixes."""
+        entered = (entered_name or '').strip().lower()
+        identified = (identified_name or '').strip().lower()
+        if not entered or not identified or entered == identified:
+            return False
+        entered_tokens = [tok for tok in re.findall(r'[a-z0-9]+', entered) if len(tok) >= 3]
+        identified_tokens = re.findall(r'[a-z0-9]+', identified)
+        if not entered_tokens or not identified_tokens:
+            return False
+        if all(tok in identified_tokens for tok in entered_tokens):
+            return False
+        ratio = SequenceMatcher(None, entered, identified).ratio()
+        if 0.65 <= ratio < 0.98:
+            return True
+        for tok in entered_tokens:
+            if tok not in identified_tokens:
+                best = max((SequenceMatcher(None, tok, cand).ratio() for cand in identified_tokens), default=0.0)
+                if 0.65 <= best < 1.0:
+                    return True
+        return False
 
     def _validate_ai_response(
         self,
         *,
         raw_response: dict,
+        product_name: str,
         allowed_fields: dict,
+        slot_fields: list[dict],
         critical_fields: list[str],
         brand_name: str,
         reference_url: str,
         search_snippets: list[dict],
+        confirmed_match: bool = False,
     ) -> SpecResearchResult:
         rejected_fields = []
         proposed_specs = {}
@@ -555,6 +669,106 @@ class ProductSpecResearchService:
 
         summary_note = (raw_response.get('summary_note') or '').strip()
 
+        raw_match_status = (raw_response.get('match_status') or '').strip().lower()
+        identified_name = (raw_response.get('identified_name') or '').strip()[:255]
+
+        suggested_corrections = []
+        raw_suggestions = raw_response.get('suggested_corrections') or []
+        if isinstance(raw_suggestions, list):
+            for sug in raw_suggestions[:5]:
+                if isinstance(sug, str) and sug.strip():
+                    suggested_corrections.append({
+                        'name': sug.strip()[:255],
+                        'brand': brand_name,
+                        'reason': f'Did you mean "{sug.strip()[:255]}"?',
+                        'url': '',
+                    })
+                elif isinstance(sug, dict):
+                    sname = (sug.get('name') or '').strip()[:255]
+                    if sname:
+                        surl = (sug.get('url') or '').strip()
+                        suggested_corrections.append({
+                            'name': sname,
+                            'brand': (sug.get('brand') or brand_name)[:120],
+                            'reason': (sug.get('reason') or f'Did you mean "{sname}"?')[:255],
+                            'url': surl if is_safe_public_http_url(surl) else '',
+                        })
+
+        if (
+            not confirmed_match
+            and raw_match_status != 'not_found'
+            and identified_name
+            and self._looks_like_typo_or_mismatch(product_name, identified_name)
+        ):
+            if not any(s['name'].lower() == identified_name.lower() for s in suggested_corrections):
+                suggested_corrections.insert(0, {
+                    'name': identified_name,
+                    'brand': brand_name,
+                    'reason': f'Possible typo or close match for "{product_name}". Confirm before applying specifications.',
+                    'url': validated_sources[0]['url'] if validated_sources else '',
+                })
+            raw_match_status = 'ambiguous'
+
+        slot_field_names = [f['name'] for f in slot_fields]
+
+        if raw_match_status == 'ambiguous' or (not confirmed_match and suggested_corrections):
+            if not suggested_corrections and identified_name:
+                suggested_corrections.append({
+                    'name': identified_name,
+                    'brand': brand_name,
+                    'reason': 'Ambiguous or close product match detected. Confirm exact product identity first.',
+                    'url': validated_sources[0]['url'] if validated_sources else '',
+                })
+            field_statuses = {fname: 'not_found' for fname in slot_field_names}
+            note = summary_note or (
+                f'Possible typo or ambiguous product query for "{product_name}". '
+                'Confirm a suggested product match or continue entering specifications manually.'
+            )
+            return SpecResearchResult(
+                available=True,
+                status='draft',
+                verification_status='unverified',
+                confidence='low',
+                match_status='ambiguous',
+                identified_name=identified_name,
+                suggested_corrections=suggested_corrections,
+                field_statuses=field_statuses,
+                proposed_specs={},
+                custom_specs={},
+                sources=validated_sources,
+                missing_fields=sorted(set(missing_fields) | set(critical_fields)),
+                conflicting_fields=[],
+                rejected_fields=rejected_fields,
+                summary_note=note,
+                raw_provider_status='ambiguous_or_typo',
+            )
+
+        if raw_match_status == 'not_found' or (
+            not proposed_specs and not custom_specs and not conflicting_fields
+        ):
+            field_statuses = {fname: 'not_found' for fname in slot_field_names}
+            note = 'Product not confidently identified. No specifications were guessed; enter specifications manually below.'
+            if summary_note and 'product not confidently identified' not in summary_note.lower():
+                note = f'Product not confidently identified. {summary_note}'
+            return SpecResearchResult(
+                available=True,
+                status='draft',
+                verification_status='unverified',
+                confidence='low',
+                match_status='not_found',
+                identified_name='',
+                suggested_corrections=[],
+                field_statuses=field_statuses,
+                proposed_specs={},
+                custom_specs={},
+                sources=validated_sources,
+                missing_fields=sorted(set(missing_fields) | set(slot_field_names)),
+                conflicting_fields=[],
+                rejected_fields=rejected_fields,
+                summary_note=note,
+                raw_provider_status='not_found',
+            )
+
         if not has_any_source:
             verification_status = 'unverified'
             confidence = 'low'
@@ -573,11 +787,25 @@ class ProductSpecResearchService:
             verification_status = 'verified_manufacturer' if has_manufacturer else 'mixed_sources'
             confidence = raw_conf
 
+        field_statuses = {}
+        all_schema_names = set(slot_field_names) | set(proposed_specs.keys()) | conflicted_field_names | set(missing_fields)
+        for fname in all_schema_names:
+            if fname in conflicted_field_names:
+                field_statuses[fname] = 'conflicting'
+            elif fname in proposed_specs:
+                field_statuses[fname] = 'sourced' if has_manufacturer else 'needs_verification'
+            else:
+                field_statuses[fname] = 'not_found'
+
         return SpecResearchResult(
             available=True,
             status='draft',
             verification_status=verification_status,
             confidence=confidence,
+            match_status='exact',
+            identified_name=identified_name or product_name,
+            suggested_corrections=suggested_corrections,
+            field_statuses=field_statuses,
             proposed_specs=proposed_specs,
             custom_specs=custom_specs,
             sources=validated_sources,

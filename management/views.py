@@ -11,7 +11,13 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_GET, require_POST
 
 from ai_engine.services.spec_researcher import RateLimitExceededError
-from management.forms import CreateManagerUserForm, CSVImportUploadForm, ProductForm, StockAdjustmentForm
+from management.forms import (
+    CategoryForm,
+    CreateManagerUserForm,
+    CSVImportUploadForm,
+    ProductForm,
+    StockAdjustmentForm,
+)
 from management.models import (
     AIResearchDraft,
     AuditLog,
@@ -26,6 +32,13 @@ from management.permissions import (
     portal_permission_required,
 )
 from management.services.ai_spec_service import discard_ai_draft, run_ai_spec_research
+from management.services.audit_service import log_portal_action
+from management.services.category_service import (
+    delete_category_safely,
+    list_categories_with_counts,
+    save_category,
+    toggle_category_active,
+)
 from management.services.csv_service import (
     cancel_csv_import_batch,
     confirm_csv_import_batch,
@@ -61,6 +74,7 @@ from management.spec_schemas import (
     get_spec_fields_for_slot,
 )
 from store.models import Brand, Category, HardwareSpecProfile, Product
+from store.services.category_init import STARTER_CATEGORIES, initialize_starter_categories
 
 
 def _extract_spec_and_custom_inputs(post_data, slot: str):
@@ -170,13 +184,16 @@ def product_list(request):
 
 def _render_product_editor(request, product: Product | None = None):
     is_create = product is None
-    categories = list(Category.objects.order_by('display_order', 'name'))
+    active_cat_qs = Category.objects.filter(is_active=True)
+    if product and product.category_id:
+        active_cat_qs = Category.objects.filter(Q(is_active=True) | Q(pk=product.category_id))
+    categories = list(active_cat_qs.order_by('display_order', 'name'))
     selected_category = product.category if product else (categories[0] if categories else None)
     profile = getattr(product, 'spec_profile', None) if product else None
     inventory = getattr(product, 'inventory', None) if product else None
 
     if request.method == 'POST':
-        form = ProductForm(request.POST)
+        form = ProductForm(request.POST, current_category=product.category if product else None)
         post_cat_id = request.POST.get('category')
         if post_cat_id:
             cat_match = Category.objects.filter(pk=post_cat_id).first()
@@ -291,7 +308,7 @@ def _render_product_editor(request, product: Product | None = None):
             }
         elif selected_category:
             initial = {'category': selected_category.id, 'status': Product.STATUS_DRAFT}
-        form = ProductForm(initial=initial)
+        form = ProductForm(initial=initial, current_category=product.category if product else None)
         slot = selected_category.component_slot if selected_category else 'other'
         spec_rows = _build_initial_spec_rows(slot, profile, post_data=None)
         existing_custom_specs = (
@@ -317,6 +334,7 @@ def _render_product_editor(request, product: Product | None = None):
     return render(request, 'management/product_form.html', {
         'active_nav': 'products',
         'is_create': is_create,
+        'has_categories': bool(categories),
         'product': product,
         'inventory': inventory,
         'gallery_images': list(product.gallery_images.all()) if product else [],
@@ -333,6 +351,196 @@ def _render_product_editor(request, product: Product | None = None):
         'price_history': list(product.price_changes.select_related('changed_by')[:8]) if product else [],
         'recent_stock_movements': list(product.stock_movements.select_related('performed_by')[:8]) if product else [],
     })
+
+
+@portal_permission_required('access_portal', 'manage_products')
+def category_list(request):
+    """List, search, filter, and manage hardware categories."""
+    q = (request.GET.get('q') or '').strip()
+    status_filter = (request.GET.get('status') or '').strip()
+    slot_filter = (request.GET.get('slot') or '').strip()
+    pc_filter = (request.GET.get('pc') or '').strip()
+
+    categories = list_categories_with_counts(
+        q=q,
+        status_filter=status_filter,
+        slot_filter=slot_filter,
+        pc_filter=pc_filter,
+    )
+
+    starter_slugs = {entry[1] for entry in STARTER_CATEGORIES}
+    existing_slugs = set(Category.objects.values_list('slug', flat=True))
+    missing_starters_count = len(starter_slugs - {s.lower() for s in existing_slugs})
+
+    return render(request, 'management/category_list.html', {
+        'active_nav': 'categories',
+        'categories': categories,
+        'total_categories_count': Category.objects.count(),
+        'active_categories_count': Category.objects.filter(is_active=True).count(),
+        'missing_starters_count': missing_starters_count,
+        'q': q,
+        'status_filter': status_filter,
+        'slot_filter': slot_filter,
+        'pc_filter': pc_filter,
+        'slot_choices': Category.COMPONENT_SLOT_CHOICES,
+    })
+
+
+@portal_permission_required('access_portal', 'manage_products')
+def category_create(request):
+    """Create a new storefront & catalog hardware category."""
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            try:
+                created = save_category(
+                    cleaned_data=form.cleaned_data,
+                    actor=request.user,
+                    request=request,
+                    category=None,
+                )
+                messages.success(request, f'Category "{created.name}" created and ready for products.')
+                return redirect('management:category_list')
+            except ValidationError as exc:
+                for msg in exc.messages:
+                    messages.error(request, msg)
+    else:
+        next_order = (Category.objects.count() or 0) + 1
+        form = CategoryForm(initial={'display_order': next_order, 'show_in_nav': True, 'is_active': True})
+
+    return render(request, 'management/category_form.html', {
+        'active_nav': 'categories',
+        'is_create': True,
+        'category': None,
+        'form': form,
+    })
+
+
+@portal_permission_required('access_portal', 'manage_products')
+def category_edit(request, category_id: int):
+    """Edit an existing hardware category."""
+    category = get_object_or_404(Category, pk=category_id)
+    if request.method == 'POST':
+        form = CategoryForm(request.POST, category_instance=category)
+        if form.is_valid():
+            try:
+                updated = save_category(
+                    cleaned_data=form.cleaned_data,
+                    actor=request.user,
+                    request=request,
+                    category=category,
+                )
+                messages.success(request, f'Category "{updated.name}" updated.')
+                return redirect('management:category_list')
+            except ValidationError as exc:
+                for msg in exc.messages:
+                    messages.error(request, msg)
+    else:
+        form = CategoryForm(
+            category_instance=category,
+            initial={
+                'name': category.name,
+                'slug': category.slug,
+                'component_slot': category.component_slot,
+                'description': category.description,
+                'icon_class': category.icon_class,
+                'display_order': category.display_order,
+                'is_pc_component': category.is_pc_component,
+                'show_in_nav': category.show_in_nav,
+                'is_active': category.is_active,
+            },
+        )
+
+    return render(request, 'management/category_form.html', {
+        'active_nav': 'categories',
+        'is_create': False,
+        'category': category,
+        'product_count': category.products.count(),
+        'form': form,
+    })
+
+
+@require_POST
+@portal_permission_required('access_portal', 'manage_products')
+def category_toggle_active(request, category_id: int):
+    """Activate or deactivate a hardware category."""
+    category = get_object_or_404(Category, pk=category_id)
+    updated = toggle_category_active(category=category, actor=request.user, request=request)
+    state_label = 'activated' if updated.is_active else 'deactivated'
+    messages.success(request, f'Category "{updated.name}" has been {state_label}.')
+    return redirect('management:category_list')
+
+
+@portal_permission_required('access_portal', 'manage_products')
+def category_delete(request, category_id: int):
+    """Delete an empty category or safely reassign its products before deletion."""
+    category = get_object_or_404(Category, pk=category_id)
+    product_count = category.products.count()
+    other_categories = Category.objects.exclude(pk=category.pk).order_by('display_order', 'name')
+
+    if request.method == 'POST':
+        reassign_to = None
+        reassign_id = (request.POST.get('reassign_to') or '').strip()
+        if reassign_id:
+            if not reassign_id.isdigit():
+                messages.error(request, 'Select a valid destination category for product reassignment.')
+                return redirect('management:category_delete', category_id=category.pk)
+            reassign_to = Category.objects.exclude(pk=category.pk).filter(pk=int(reassign_id)).first()
+            if not reassign_to:
+                messages.error(request, 'Selected destination category could not be found.')
+                return redirect('management:category_delete', category_id=category.pk)
+
+        try:
+            result = delete_category_safely(
+                category=category,
+                actor=request.user,
+                reassign_to=reassign_to,
+                request=request,
+            )
+            if result['reassigned_count'] > 0:
+                messages.success(
+                    request,
+                    f'Reassigned {result["reassigned_count"]} product(s) to "{result["reassigned_to_name"]}" '
+                    f'and deleted category "{result["deleted_name"]}".',
+                )
+            else:
+                messages.success(request, f'Deleted category "{result["deleted_name"]}".')
+            return redirect('management:category_list')
+        except ValueError as exc:
+            messages.error(request, str(exc))
+
+    return render(request, 'management/category_delete.html', {
+        'active_nav': 'categories',
+        'category': category,
+        'product_count': product_count,
+        'other_categories': other_categories,
+    })
+
+
+@require_POST
+@portal_permission_required('access_portal', 'manage_products')
+def category_init_starters(request):
+    """Idempotently initialize essential starter categories from the portal without touching products."""
+    result = initialize_starter_categories(overwrite_existing=False)
+    if result['created'] > 0:
+        log_portal_action(
+            actor=request.user,
+            action='init_starter_categories',
+            target_type='Category',
+            target_id='',
+            target_label='Starter Categories',
+            before_data={},
+            after_data={'created_names': result['created_names']},
+            summary=f'Initialized {result["created"]} starter hardware category(ies).',
+            request=request,
+        )
+        messages.success(
+            request,
+            f'Initialized {result["created"]} starter category(ies): {", ".join(result["created_names"])}.',
+        )
+    else:
+        messages.info(request, 'All essential starter categories already exist (owner edits preserved).')
+    return redirect('management:category_list')
 
 
 @portal_permission_required('access_portal', 'manage_products')
@@ -464,6 +672,7 @@ def api_ai_research_specs(request):
     model_number = (payload.get('model_number') or '').strip()
     reference_url = (payload.get('reference_url') or '').strip()
     product_id = payload.get('product_id')
+    confirmed_match = str(payload.get('confirmed_match') or '').lower() in ('1', 'true', 'yes')
 
     if not category_id:
         return JsonResponse({'error': 'Category selection is required before researching specs.'}, status=400)
@@ -483,6 +692,7 @@ def api_ai_research_specs(request):
             reference_url=reference_url,
             product=product,
             request=request,
+            confirmed_match=confirmed_match,
         )
     except RateLimitExceededError as exc:
         return JsonResponse({'error': str(exc), 'rate_limited': True}, status=429)
@@ -493,6 +703,10 @@ def api_ai_research_specs(request):
         'draft_id': draft.id,
         'status': draft.status,
         'available': draft.status != AIResearchDraft.STATUS_UNAVAILABLE,
+        'match_status': draft.match_status,
+        'identified_name': draft.identified_name,
+        'suggested_corrections': draft.suggested_corrections,
+        'field_statuses': draft.field_statuses,
         'verification_status': draft.verification_status,
         'verification_label': draft.get_verification_status_display(),
         'confidence': draft.confidence,

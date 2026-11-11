@@ -1,5 +1,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_slug
+from django.db.models import Q
+from django.utils.text import slugify
 
 from management.models import StockMovement
 from store.models import Brand, Category, Product
@@ -98,6 +101,134 @@ class ProductForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={'class': 'cc-input', 'type': 'date'}),
     )
+
+    def __init__(self, *args, current_category=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        qs = Category.objects.filter(is_active=True)
+        if current_category is not None and getattr(current_category, 'pk', None):
+            qs = Category.objects.filter(Q(is_active=True) | Q(pk=current_category.pk))
+        self.fields['category'].queryset = qs.order_by('display_order', 'name')
+
+
+CATEGORY_ICON_CHOICES = [
+    ('bi-cpu', 'Processor / CPU Chip'),
+    ('bi-motherboard', 'Motherboard / Circuit'),
+    ('bi-memory', 'Memory / RAM Stick'),
+    ('bi-gpu-card', 'Graphics Card / GPU'),
+    ('bi-nvme', 'Storage / SSD & HDD'),
+    ('bi-lightning-charge', 'Power Supply / PSU'),
+    ('bi-pc', 'PC Cabinet / Case'),
+    ('bi-fan', 'CPU Cooler / Fan'),
+    ('bi-wind', 'Case Fan / Airflow'),
+    ('bi-display', 'Monitor / Display'),
+    ('bi-keyboard', 'Keyboard / Input'),
+    ('bi-mouse', 'Mouse / Pointer'),
+    ('bi-plug', 'Cables / Accessories'),
+    ('bi-box-seam', 'General Hardware Box'),
+]
+
+
+class CategoryForm(forms.Form):
+    """Form for creating and editing hardware product categories in the management portal."""
+
+    name = forms.CharField(
+        max_length=120,
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'e.g. Graphics Cards (GPU)'}),
+    )
+    slug = forms.CharField(
+        max_length=140,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'cc-input cc-mono', 'placeholder': 'Auto-generated from name if blank'}),
+    )
+    component_slot = forms.ChoiceField(
+        choices=Category.COMPONENT_SLOT_CHOICES,
+        initial='other',
+        widget=forms.Select(attrs={'class': 'cc-select'}),
+    )
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'cc-textarea', 'rows': 3, 'placeholder': 'Optional storefront category description'}),
+    )
+    icon_class = forms.ChoiceField(
+        choices=CATEGORY_ICON_CHOICES,
+        initial='bi-cpu',
+        widget=forms.Select(attrs={'class': 'cc-select'}),
+    )
+    display_order = forms.IntegerField(
+        min_value=0,
+        initial=0,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'cc-input cc-mono', 'min': '0'}),
+    )
+    is_pc_component = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'cc-checkbox'}),
+    )
+    show_in_nav = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'cc-checkbox'}),
+    )
+    is_active = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'cc-checkbox'}),
+    )
+
+    def __init__(self, *args, category_instance: Category | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.category_instance = category_instance
+        # Preserve an existing custom icon class not present in default preset options
+        if category_instance and category_instance.icon_class:
+            existing_choices = dict(self.fields['icon_class'].choices)
+            if category_instance.icon_class not in existing_choices:
+                self.fields['icon_class'].choices = [
+                    *self.fields['icon_class'].choices,
+                    (category_instance.icon_class, f'Custom ({category_instance.icon_class})'),
+                ]
+
+    def clean_name(self):
+        name = ' '.join((self.cleaned_data.get('name') or '').split())
+        if len(name) < 2:
+            raise ValidationError('Category name must be at least 2 characters.')
+        qs = Category.objects.filter(name__iexact=name)
+        if self.category_instance is not None:
+            qs = qs.exclude(pk=self.category_instance.pk)
+        if qs.exists():
+            raise ValidationError(f'A category named "{name}" already exists.')
+        return name
+
+    def clean(self):
+        cleaned = super().clean()
+        name = cleaned.get('name') or ''
+        raw_slug = (cleaned.get('slug') or '').strip().lower()
+        resolved_slug = raw_slug or slugify(name)
+
+        if not resolved_slug:
+            self.add_error('slug', 'Provide a valid URL slug using letters, numbers, underscores, or hyphens.')
+            return cleaned
+
+        try:
+            validate_slug(resolved_slug)
+        except ValidationError:
+            self.add_error('slug', 'Slug may only contain letters, numbers, underscores, or hyphens.')
+            return cleaned
+
+        if len(resolved_slug) > 140:
+            self.add_error('slug', 'Slug cannot exceed 140 characters.')
+            return cleaned
+
+        slug_qs = Category.objects.filter(slug__iexact=resolved_slug)
+        if self.category_instance is not None:
+            slug_qs = slug_qs.exclude(pk=self.category_instance.pk)
+        if slug_qs.exists():
+            self.add_error('slug', f'The slug "{resolved_slug}" is already used by another category.')
+            return cleaned
+
+        cleaned['slug'] = resolved_slug
+        cleaned['display_order'] = cleaned.get('display_order') or 0
+        return cleaned
 
 
 class StockAdjustmentForm(forms.Form):
