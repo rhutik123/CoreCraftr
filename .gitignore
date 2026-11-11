@@ -11,9 +11,12 @@ ENV/
 
 # Environment variables & secrets
 .env
+.env.*
 .env.local
 .env.*.local
 !.env.example
+*.pem
+*.key
 
 # Django & local database / backups
 *.log
@@ -41,3 +44,6 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
