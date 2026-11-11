@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}My Wishlist | HardwareHub{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 fw-bold mb-0">My Wishlist</h1>
+  <a href="{% url 'store' %}" class="btn btn-outline-primary btn-sm">Explore More Hardware</a>
+</div>
+
+{% if wishlist_items %}
+<div class="row g-3">
+  {% for entry in wishlist_items %}
+  <div class="col-sm-6 col-lg-3">
+    <div class="hh-card h-100 d-flex flex-column">
+      <a href="{% url 'detail' entry.product.id %}" class="hh-product-img-wrap">
+        <img src="{{ entry.product.imageURL }}" alt="{{ entry.product.name }}">
+      </a>
+      <div class="p-3 d-flex flex-column flex-grow-1">
+        <small class="text-muted">{{ entry.product.brand.name|default:"Hardware" }}</small>
+        <h6 class="fw-bold"><a href="{% url 'detail' entry.product.id %}" class="text-decoration-none text-dark">{{ entry.product.name }}</a></h6>
+        <div class="fw-bold text-primary mb-3">Rs. {{ entry.product.price|floatformat:2 }}</div>
+        <div class="d-flex gap-2 mt-auto">
+          <button data-product="{{ entry.product.id }}" data-action="add" class="btn btn-primary btn-sm flex-grow-1 update-cart" {% if not entry.product.in_stock %}disabled{% endif %}>
+            Add to Cart
+          </button>
+          <form method="post" action="{% url 'toggle_wishlist' entry.product.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'wishlist' %}">
+            <button type="submit" class="btn btn-outline-danger btn-sm" title="Remove from wishlist">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="hh-card p-5 text-center">
+  <i class="bi bi-heart fs-1 text-muted mb-2 d-block"></i>
+  <h5>Your wishlist is empty</h5>
+  <p class="text-muted small">Save GPUs, CPUs, or peripherals you are eyeing to compare or buy later.</p>
+  <a href="{% url 'store' %}" class="btn btn-primary btn-sm">Browse Catalogue</a>
+</div>
+{% endif %}
+{% endblock %}

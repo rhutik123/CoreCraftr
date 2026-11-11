@@ -1,30 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>reset password</title>
-    <style>
-        body{
-            background: #7abecc;
-            display: inline-block;
+{% extends 'base.html' %}
 
-        }
-        p{
-            position: absolute;
-            top: 35%;
-            left: 20%;
-            font-family: monospace;
-            font-size: 43px;
-            font-weight: 700;
-            color: rgb(243, 0, 231);
+{% block title %}Reset Email Sent | HardwareHub{% endblock %}
 
-        }
-    </style>
-    
-</head>
-<body>
-    <p>email has been sent successfully !!!!<br>
-    note: In Case check your spam messages too... </p>
-</body>
-</html>
+{% block content %}
+<div class="row justify-content-center py-4">
+  <div class="col-md-6">
+    <div class="hh-card p-4 text-center">
+      <i class="bi bi-envelope-check fs-1 text-success mb-2 d-block"></i>
+      <h4 class="fw-bold">Check Your Email</h4>
+      <p class="text-muted small">If an account matches the email address provided, a password reset link has been sent (or logged to console in local development mode).</p>
+      <a href="{% url 'login' %}" class="btn btn-primary btn-sm">Return to Sign In</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

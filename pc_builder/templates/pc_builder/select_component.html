@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Select {{ slot_meta.label }} | PC Builder{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Choose {{ slot_meta.label }}</h1>
+    <small class="text-muted">Every component is checked live against your active build ({{ build.component_count }} component{{ build.component_count|pluralize }} selected).</small>
+  </div>
+  <a href="{% url 'pc_builder' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to PC Builder</a>
+</div>
+
+<!-- Filters Bar -->
+<form method="get" class="hh-card p-3 mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Search</label>
+      <input type="text" name="q" value="{{ filters.q }}" class="form-control form-control-sm" placeholder="Name, chipset, socket...">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Brand</label>
+      <select name="brand" class="form-select form-select-sm">
+        <option value="">All Brands</option>
+        {% for b in brands %}
+        <option value="{{ b.slug }}" {% if filters.brand == b.slug %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Max Price (Rs.)</label>
+      <input type="number" name="max_price" value="{{ filters.max_price }}" class="form-control form-control-sm" step="1000">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small fw-semibold">Sort</label>
+      <select name="sort" class="form-select form-select-sm">
+        <option value="recommended" {% if filters.sort == 'recommended' or not filters.sort %}selected{% endif %}>Compatible &amp; Best</option>
+        <option value="price_asc" {% if filters.sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+        <option value="price_desc" {% if filters.sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+        <option value="performance" {% if filters.sort == 'performance' %}selected{% endif %}>Performance Tier</option>
+      </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-center gap-3">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="only_compatible" value="1" id="onlyCompat" {% if filters.only_compatible %}checked{% endif %}>
+        <label class="form-check-label small fw-semibold" for="onlyCompat">Compatible Only</label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm ms-auto">Apply</button>
+    </div>
+  </div>
+</form>
+
+<!-- Candidate Products -->
+<div class="d-flex flex-column gap-3">
+  {% for item in candidates %}
+  {% with p=item.product spec=item.product.spec_profile_safe %}
+  <div class="hh-card p-3 {% if item.is_selected %}border-primary border-2{% endif %}">
+    <div class="row g-3 align-items-center">
+      <div class="col-md-7">
+        <div class="d-flex align-items-start gap-3">
+          <img src="{{ p.imageURL }}" alt="{{ p.name }}" class="hh-thumb-sm mt-1">
+          <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <span class="badge hh-badge-compat-{{ item.compat_status }} text-uppercase">{{ item.compat_status }}</span>
+              {% if item.is_selected %}<span class="badge text-bg-primary">Currently Selected</span>{% endif %}
+              <small class="text-muted">{{ p.brand.name|default:"" }}</small>
+            </div>
+            <h6 class="fw-bold mb-1">
+              <a href="{% url 'detail' p.id %}" class="text-decoration-none text-dark">{{ p.name }}</a>
+            </h6>
+            <p class="small text-muted mb-1">{{ p.short_description }}</p>
+
+            {% if spec %}
+            <div class="d-flex flex-wrap gap-2 small">
+              {% if spec.socket %}<span class="badge bg-light text-dark border">Socket: {{ spec.socket }}</span>{% endif %}
+              {% if spec.chipset %}<span class="badge bg-light text-dark border">Chipset: {{ spec.chipset }}</span>{% endif %}
+              {% if spec.memory_type %}<span class="badge bg-light text-dark border">{{ spec.memory_type }}</span>{% endif %}
+              {% if spec.form_factor %}<span class="badge bg-light text-dark border">{{ spec.form_factor }}</span>{% endif %}
+              {% if spec.ram_capacity_gb %}<span class="badge bg-light text-dark border">{{ spec.ram_capacity_gb }}GB ({{ spec.ram_modules }}x) {{ spec.ram_speed_mhz }}MT/s</span>{% endif %}
+              {% if spec.vram_gb %}<span class="badge bg-light text-dark border">{{ spec.vram_gb }}GB {{ spec.vram_type }}</span>{% endif %}
+              {% if spec.gpu_length_mm %}<span class="badge bg-light text-dark border">Len: {{ spec.gpu_length_mm }}mm</span>{% endif %}
+              {% if spec.tdp_watts %}<span class="badge bg-light text-dark border">TDP: {{ spec.tdp_watts }}W</span>{% endif %}
+              {% if spec.wattage %}<span class="badge bg-light text-dark border">{{ spec.wattage }}W {{ spec.efficiency_rating }}</span>{% endif %}
+              {% if spec.max_gpu_length_mm %}<span class="badge bg-light text-dark border">Max GPU: {{ spec.max_gpu_length_mm }}mm</span>{% endif %}
+              {% if spec.max_cooler_height_mm %}<span class="badge bg-light text-dark border">Max Cooler: {{ spec.max_cooler_height_mm }}mm</span>{% endif %}
+              {% if spec.cooler_height_mm %}<span class="badge bg-light text-dark border">Height: {{ spec.cooler_height_mm }}mm</span>{% endif %}
+              {% if spec.radiator_size_mm %}<span class="badge bg-light text-dark border">Rad: {{ spec.radiator_size_mm }}mm</span>{% endif %}
+            </div>
+            {% endif %}
+
+            {% if item.primary_issue %}
+            <div class="small mt-2 {% if item.compat_status == 'incompatible' %}text-danger{% elif item.compat_status == 'warning' %}text-warning-emphasis{% else %}text-secondary{% endif %}">
+              <i class="bi bi-info-circle me-1"></i><strong>{{ item.primary_issue.title }}:</strong> {{ item.primary_issue.message }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-5 text-md-end">
+        <div class="fs-5 fw-bold text-dark">Rs. {{ p.price|floatformat:0 }}</div>
+        <div class="small text-muted mb-2">{{ p.inventory.stock_status_label }}</div>
+        <div class="d-flex flex-wrap justify-content-md-end gap-2">
+          <a href="{% url 'detail' p.id %}" class="btn btn-outline-secondary btn-sm">Inspect Specs</a>
+          <form method="post" action="{% url 'builder_set_component' %}">
+            {% csrf_token %}
+            <input type="hidden" name="slot" value="{{ slot }}">
+            <input type="hidden" name="product_id" value="{{ p.id }}">
+            <button type="submit" class="btn btn-sm {% if item.compat_status == 'incompatible' %}btn-outline-danger{% else %}btn-primary{% endif %}">
+              {% if item.is_selected %}Selected{% elif item.compat_status == 'incompatible' %}Select Anyway{% else %}Select Part{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+  {% empty %}
+  <div class="hh-card p-5 text-center">
+    <p class="text-muted mb-2">No products matched your current filter criteria.</p>
+    <a href="{% url 'builder_select_slot' slot %}" class="btn btn-primary btn-sm">Reset Filters</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

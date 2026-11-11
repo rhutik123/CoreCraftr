@@ -1,20 +1,149 @@
-{% extends 'store/main.html' %}
-{% load static %}
-{% block content %}
+{% extends 'base.html' %}
 
-<div class="row">
-    {% for product in products %}
-    <div class="col-lg-4 my-3">
-        <img class="thumbnail" src="{{ product.imageURL }}" alt="">
-        <div class="box-element product">
-            <h6><strong>{{ product.name }}</strong></h6>
-            <hr>
-            <button data-product="{{ product.id }}" data-action="add" class="btn btn-outline-secondary update-cart">Add to cart</button>
-            <a href="{% url 'detail' product.id %}" class="btn btn-outline-success">View</a>
-            <h4 style="display: inline-block;"><strong>Rs. {{ product.price|floatformat:2 }}</strong></h4>
-        </div>    
-    </div>
-    {% endfor %}
+{% block title %}{% if active_category %}{{ active_category.name }}{% else %}Hardware Catalogue{% endif %} | HardwareHub{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h1 class="h3 fw-bold mb-1">
+      {% if active_category %}{{ active_category.name }}{% else %}Hardware Catalogue{% endif %}
+    </h1>
+    <small class="text-muted">{{ total_results }} product{{ total_results|pluralize }} matching your filters</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'compare' %}" class="btn btn-outline-dark btn-sm">
+      <i class="bi bi-columns-gap me-1"></i>Compare ({{ compare_count }})
+    </a>
+    <a href="{% url 'pc_builder' %}" class="btn btn-info btn-sm fw-semibold">
+      <i class="bi bi-tools me-1"></i>Open PC Builder
+    </a>
+  </div>
 </div>
 
-{% endblock content %}
+<div class="row g-4">
+  <!-- Filters Sidebar -->
+  <aside class="col-lg-3">
+    <form method="get" action="{% url 'store' %}" class="hh-card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-funnel me-1"></i>Filters</h6>
+        <a href="{% url 'store' %}" class="small text-decoration-none">Reset</a>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Search</label>
+        <input type="text" name="q" value="{{ filters.q }}" class="form-control form-control-sm" placeholder="Ryzen, RTX, B650, DDR5...">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Category</label>
+        <select name="category" class="form-select form-select-sm">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat.slug }}" {% if filters.category == cat.slug %}selected{% endif %}>
+            {{ cat.name }} ({{ cat.product_count }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Brand</label>
+        <select name="brand" class="form-select form-select-sm">
+          <option value="">All Brands</option>
+          {% for b in brands %}
+          <option value="{{ b.slug }}" {% if filters.brand == b.slug %}selected{% endif %}>
+            {{ b.name }} ({{ b.product_count }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label small fw-semibold">Min Rs.</label>
+          <input type="number" name="min_price" value="{{ filters.min_price }}" class="form-control form-control-sm" min="0" step="500">
+        </div>
+        <div class="col-6">
+          <label class="form-label small fw-semibold">Max Rs.</label>
+          <input type="number" name="max_price" value="{{ filters.max_price }}" class="form-control form-control-sm" min="0" step="500">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Socket (CPUs / Boards)</label>
+        <select name="socket" class="form-select form-select-sm">
+          <option value="">Any Socket</option>
+          <option value="AM4" {% if filters.socket == 'AM4' %}selected{% endif %}>AMD AM4</option>
+          <option value="AM5" {% if filters.socket == 'AM5' %}selected{% endif %}>AMD AM5</option>
+          <option value="LGA1700" {% if filters.socket == 'LGA1700' %}selected{% endif %}>Intel LGA1700</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Memory Generation</label>
+        <select name="memory_type" class="form-select form-select-sm">
+          <option value="">Any DDR</option>
+          <option value="DDR4" {% if filters.memory_type == 'DDR4' %}selected{% endif %}>DDR4</option>
+          <option value="DDR5" {% if filters.memory_type == 'DDR5' %}selected{% endif %}>DDR5</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Sort By</label>
+        <select name="sort" class="form-select form-select-sm">
+          <option value="featured" {% if filters.sort == 'featured' or not filters.sort %}selected{% endif %}>Featured</option>
+          <option value="price_asc" {% if filters.sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+          <option value="price_desc" {% if filters.sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+          <option value="rating" {% if filters.sort == 'rating' %}selected{% endif %}>Top Rated</option>
+          <option value="name" {% if filters.sort == 'name' %}selected{% endif %}>Name (A–Z)</option>
+        </select>
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="in_stock" value="1" id="inStockOnly" {% if filters.in_stock %}checked{% endif %}>
+        <label class="form-check-label small" for="inStockOnly">In Stock Only</label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-sm w-100">Apply Filters</button>
+    </form>
+  </aside>
+
+  <!-- Product Grid -->
+  <div class="col-lg-9">
+    {% if products %}
+    <div class="row g-3">
+      {% for product in products %}
+      <div class="col-sm-6 col-xl-4">
+        {% include 'store/partials/product_card.html' with product=product %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4" aria-label="Catalogue pagination">
+      <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.category %}&category={{ filters.category }}{% endif %}{% if filters.brand %}&brand={{ filters.brand }}{% endif %}{% if filters.sort %}&sort={{ filters.sort }}{% endif %}">Previous</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filters.q %}&q={{ filters.q }}{% endif %}{% if filters.category %}&category={{ filters.category }}{% endif %}{% if filters.brand %}&brand={{ filters.brand }}{% endif %}{% if filters.sort %}&sort={{ filters.sort }}{% endif %}">Next</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="hh-card p-5 text-center">
+      <i class="bi bi-search fs-1 text-muted mb-2 d-block"></i>
+      <h5>No matching hardware products found</h5>
+      <p class="text-muted small">Try clearing one or more filters to browse the full catalogue.</p>
+      <a href="{% url 'store' %}" class="btn btn-primary btn-sm">Clear Filters</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}HardwareHub | Computer Hardware Store &amp; Intelligent PC Builder{% endblock %}
+
+{% block content %}
+<!-- Hero & Dual Entry Points for PC Builder -->
+<section class="hh-hero p-4 p-lg-5 mb-5 shadow">
+  <div class="row align-items-center gy-4">
+    <div class="col-lg-7">
+      <span class="badge text-bg-info mb-2">Verified Compatibility Engine + AI Guidance</span>
+      <h1 class="display-5 fw-bold mb-3">Build Your Custom PC With Confidence</h1>
+      <p class="lead text-light opacity-75 mb-4">
+        Whether you are buying your very first PC or fine-tuning every clock speed and clearance millimeter,
+        HardwareHub verifies socket, chipset, BIOS, RAM, wattage, and case fit deterministically.
+      </p>
+      <div class="d-flex flex-wrap gap-3">
+        <a href="{% url 'pc_builder' %}?mode=beginner" class="btn btn-info btn-lg fw-semibold px-4">
+          <i class="bi bi-magic me-2"></i>Help me build my first PC
+        </a>
+        <a href="{% url 'pc_builder' %}?mode=expert" class="btn btn-outline-light btn-lg fw-semibold px-4">
+          <i class="bi bi-sliders me-2"></i>I know what I'm looking for
+        </a>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="bg-dark bg-opacity-50 border border-secondary rounded-4 p-4">
+        <h6 class="text-info text-uppercase fw-bold mb-3">Two Modes, One Seamless Build</h6>
+        <ul class="list-unstyled mb-0 small">
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Beginner Mode:</strong> Tell us your budget &amp; use case—get plain-English component explanations &amp; trade-offs.</li>
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Expert Mode:</strong> Filter by socket, chipset, DDR generation, GPU clearance, and PSU connectors.</li>
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Switch Anytime:</strong> Moving between modes never erases your components.</li>
+          <li><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Deterministic Validation:</strong> Real backend hardware rules check every build—never guessed by AI.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Popular Hardware Categories -->
+<section class="mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 fw-bold mb-0">Popular Hardware Categories</h2>
+    <a href="{% url 'store' %}" class="btn btn-sm btn-outline-primary">View Full Catalogue</a>
+  </div>
+  <div class="row g-3">
+    {% for cat in categories %}
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{% url 'category_detail' cat.slug %}" class="hh-card p-3 d-block text-decoration-none text-dark text-center h-100">
+        <i class="bi {{ cat.icon_class }} fs-2 text-primary d-block mb-2"></i>
+        <div class="fw-semibold small">{{ cat.name }}</div>
+        <small class="text-muted">{{ cat.product_count }} item{{ cat.product_count|pluralize }}</small>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Budget PC Recommendations -->
+<section class="mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="h4 fw-bold mb-0">Budget PC Starting Points</h2>
+      <small class="text-muted">Launch the Beginner Builder pre-configured for popular budgets</small>
+    </div>
+    <a href="{% url 'pc_builder' %}?mode=beginner" class="btn btn-sm btn-outline-info text-dark fw-semibold">Custom Budget Wizard</a>
+  </div>
+  <div class="row g-3">
+    {% for tier in budget_tiers %}
+    <div class="col-md-4">
+      <div class="hh-card p-4 h-100 d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="badge text-bg-primary">{{ tier.badge }}</span>
+          <span class="fw-bold text-dark">~ Rs. {{ tier.budget }}</span>
+        </div>
+        <h5 class="fw-bold">{{ tier.title }}</h5>
+        <p class="small text-muted flex-grow-1">{{ tier.summary }}</p>
+        <a href="{% url 'pc_builder' %}?mode=beginner&budget={{ tier.budget_raw }}&use={{ tier.use }}" class="btn btn-outline-primary btn-sm mt-2">
+          Configure Around Rs. {{ tier.budget }} <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Featured Products -->
+<section class="mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 fw-bold mb-0">Featured Hardware</h2>
+    <a href="{% url 'store' %}?sort=featured" class="btn btn-sm btn-outline-secondary">Shop Featured</a>
+  </div>
+  <div class="row g-3">
+    {% for product in featured_products %}
+    <div class="col-sm-6 col-lg-3">
+      {% include 'store/partials/product_card.html' with product=product %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Trending & Special Offers -->
+<section class="mb-5">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 fw-bold mb-0">Trending Components</h2>
+        <a href="{% url 'store' %}" class="btn btn-sm btn-outline-secondary">See More</a>
+      </div>
+      <div class="row g-3">
+        {% for product in trending_products|slice:":4" %}
+        <div class="col-sm-6">
+          {% include 'store/partials/product_card.html' with product=product %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <h2 class="h4 fw-bold mb-3">Special Offers</h2>
+      <div class="d-flex flex-column gap-3">
+        {% for offer in special_offers %}
+        <div class="hh-card p-3 d-flex gap-3 align-items-center">
+          <img src="{{ offer.imageURL }}" alt="{{ offer.name }}" class="hh-thumb-sm">
+          <div class="flex-grow-1 min-w-0">
+            <a href="{% url 'detail' offer.id %}" class="fw-semibold text-decoration-none text-dark d-block text-truncate">{{ offer.name }}</a>
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold text-primary">Rs. {{ offer.price|floatformat:0 }}</span>
+              {% if offer.discount_percent > 0 %}
+              <span class="badge text-bg-danger">-{{ offer.discount_percent }}%</span>
+              {% endif %}
+            </div>
+          </div>
+          <button data-product="{{ offer.id }}" data-action="add" class="btn btn-sm btn-outline-primary update-cart" title="Add to cart">
+            <i class="bi bi-cart-plus"></i>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Popular Community/Saved Builds (if any exist) -->
+{% if popular_builds %}
+<section class="mb-4">
+  <h2 class="h4 fw-bold mb-3">Popular Custom PC Builds</h2>
+  <div class="row g-3">
+    {% for build in popular_builds %}
+    <div class="col-md-4">
+      <div class="hh-card p-3 h-100">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="badge text-bg-dark">{{ build.get_primary_use_display }}</span>
+          <span class="fw-bold text-primary">Rs. {{ build.total_price|floatformat:0 }}</span>
+        </div>
+        <h6 class="fw-bold">{{ build.name }}</h6>
+        <small class="text-muted d-block mb-2">{{ build.component_count }} components selected</small>
+        <a href="{% url 'pc_builder' %}" class="btn btn-sm btn-outline-primary">Open PC Builder</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,146 +1,119 @@
-{% extends 'store/main.html' %}
-{% load static %}
+{% extends 'base.html' %}
+
+{% block title %}Demo Checkout | HardwareHub{% endblock %}
+
 {% block content %}
-
-<div class="row">
-    <div class="col-lg-6">
-        <div class="box-element" id="form-wrapper">
-            <form id="form">
-                <div id="user-info">
-                    <div class="form-field">
-                        <input required class="form-control" name="name" placeholder="name.." type="text">
-                    </div>
-                    <div class="form-field">
-                        <input required class="form-control" name="email" placeholder="email.." type="text">
-                    </div>
-                </div>
-
-                <div id="shipping-info">
-                    <hr>
-                    <p>Shipping Information:</p>
-                    <hr>
-                    <div class="form-field">
-                        <input type="text" class="form-control" name="address" placeholder="Address..">
-                    </div>
-                    <div class="form-field">
-                        <input type="text" class="form-control" name="city" placeholder="city..">
-                    </div>
-                    <div class="form-field">
-                        <input type="text" class="form-control" name="state" placeholder="state..">
-                    </div>
-                    <div class="form-field">
-                        <input type="text" class="form-control" name="zipcode" placeholder="zipcode..">
-                    </div>
-                    <div class="form-field">
-                        <input type="text" class="form-control" name="country" placeholder="country..">
-                    </div>
-                </div>
-                <hr>
-                <input class="btn btn-success btn-block" id="form-button" type="submit" value="Continue">
-            </form>
-        </div>
-
-        <br>
-        <div class="box-element hidden" id="payment-info" >
-            <small>PayPal options</small>
-            <button id="make-payment">Make payment</button>
-        </div>
-
-    </div>
-
-    <div class="col-lg-6">
-        <div class="box-element">
-            <a href="{% url 'cart' %}" class="btn btn-outline-dark">&#x2190; Back to Cart</a>
-            <hr>
-            <h3>Order Summary</h3>
-            <hr>
-            {% for item in items %}
-            <div class="cart-row">
-                <div style="flex: 2;"><img src="{{ item.product.imageURL }}" alt="" class="row-image"></div>
-                <div style="flex: 2;">{{ item.product.name }}</div>
-                <div style="flex: 1;">Rs. {{ item.product.price|floatformat:2 }}</div>
-                <div style="flex: 1;">x{{ item.quantity }}</div>
-            </div>
-            {% endfor %}
-            <h5>Items:   {{ order.get_cart_items }}</h5>
-            <h5>Total:   Rs. {{ order.get_cart_total|floatformat:2 }}</h5>
-        </div>
-    </div>
+<div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-shield-check fs-5"></i>
+  <div>
+    <strong>Demo Checkout Only:</strong> No real payment gateway is connected and no real payment card numbers are collected.
+  </div>
 </div>
 
-<script type="text/javascript">
-    var shipping = '{{ order.shipping }}'
-    var total = '{{ order.get_cart_total }}'
+{% if stock_errors %}
+<div class="alert alert-danger">
+  {% for err in stock_errors %}<div>{{ err }}</div>{% endfor %}
+</div>
+{% endif %}
 
-    if(shipping == 'False'){
-        document.getElementById('shipping-info').innerHTML = ''
-    }
+<div class="row g-4">
+  <div class="col-lg-7">
+    <form method="post" action="{% url 'checkout' %}" class="hh-card p-4">
+      {% csrf_token %}
+      <h4 class="fw-bold mb-3">Customer &amp; Delivery Information</h4>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Full Name *</label>
+          {{ form.customer_name }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Email Address *</label>
+          {{ form.customer_email }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Phone Number *</label>
+          {{ form.customer_phone }}
+        </div>
+      </div>
 
-    if (user != 'AnonymousUser'){
-        document.getElementById('user-info').innerHTML = ''
-    }
+      {% if requires_shipping %}
+      <h5 class="fw-bold mt-4 mb-3">Shipping Address</h5>
+      <div class="row g-3 mb-3">
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Street Address *</label>
+          {{ form.address }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">City *</label>
+          {{ form.city }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">State *</label>
+          {{ form.state }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">PIN / ZIP Code *</label>
+          {{ form.zipcode }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Country</label>
+          {{ form.country }}
+        </div>
+      </div>
+      {% endif %}
 
-    if (shipping == 'False' && user != 'AnonymousUser'){
-        document.getElementById('form-wrapper').classList.add('hidden');
-        document.getElementById('payment-info').classList.remove('hidden');
-    }
+      <h5 class="fw-bold mt-4 mb-3">Simulated Payment Method (Dummy)</h5>
+      <div class="border rounded p-3 bg-light mb-3">
+        {% for choice in form.payment_method %}
+        <div class="form-check mb-2">
+          {{ choice.tag }}
+          <label class="form-check-label" for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+        </div>
+        {% endfor %}
+      </div>
 
-    var form = document.getElementById('form')
+      <div class="mb-4">
+        <label class="form-label small fw-semibold">Order Notes (Optional)</label>
+        {{ form.notes }}
+      </div>
 
-    form.addEventListener('submit',function(e){
-        e.preventDefault()
-        console.log('form submitted...')
-        document.getElementById('form-button').classList.add('hidden')
-        document.getElementById('payment-info').classList.remove('hidden')
-    })
+      <button type="submit" class="btn btn-success btn-lg w-100" {% if stock_errors %}disabled{% endif %}>
+        Place Order (Demo) <i class="bi bi-check-circle ms-1"></i>
+      </button>
+    </form>
+  </div>
 
-    document.getElementById('make-payment').addEventListener('click', function(e){
-        submitFormData()
-    })
-
-    function submitFormData(){
-        console.log('payment button was clicked')
-
-        var userFormData = {
-            "name":null,
-            "email":null,
-            "total":total,
-        }
-        var shippingInfo = {
-            "address":null,
-            "city":null,
-            "state":null,
-            "zipcode":null,
-        }
-        if(shipping != 'False'){
-            shippingInfo.address = form.address.value
-            shippingInfo.city = form.city.value
-            shippingInfo.state = form.state.value
-            shippingInfo.zipcode = form.zipcode.value
-        }
-        if(user == 'AnonymousUser'){
-            userFormData.name = form.name.value
-            userFormData.email = form.email.value
-        }
-
-        var url = '/process_order/'
-        fetch(url, {
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json',
-                'X-CSRFToken':csrftoken,
-            },
-            body:JSON.stringify({'form':userFormData, 'shipping':shippingInfo})
-        })
-        .then((response) => response.json())
-        .then((data) => {
-            console.log('Success', data);
-            alert('Transaction completed');
-            window.location.href = "{% url 'store' %}"
-        })
-
-    }
-
-</script>
-
-{% endblock content %}
+  <div class="col-lg-5">
+    <div class="hh-card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Order Summary</h5>
+        <a href="{% url 'cart' %}" class="btn btn-sm btn-outline-secondary">Edit Cart</a>
+      </div>
+      <div class="list-group list-group-flush mb-3">
+        {% for item in items %}
+        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold small">{{ item.product.name }}</div>
+            <small class="text-muted">Qty: {{ item.quantity }} &times; Rs. {{ item.product.price|floatformat:2 }}</small>
+          </div>
+          <span class="fw-semibold">Rs. {{ item.line_total|floatformat:2 }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span class="text-muted">Subtotal</span>
+        <span>Rs. {{ subtotal|floatformat:2 }}</span>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span class="text-muted">Shipping</span>
+        <span>{% if shipping_fee == 0 %}Free{% else %}Rs. {{ shipping_fee|floatformat:2 }}{% endif %}</span>
+      </div>
+      <hr>
+      <div class="d-flex justify-content-between fs-5 fw-bold">
+        <span>Total Payable (Demo)</span>
+        <span>Rs. {{ total|floatformat:2 }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

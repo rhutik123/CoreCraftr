@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260">
+  <defs>
+    <linearGradient id="bg-gpu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="260" fill="url(#bg-gpu)"/>
+  <circle cx="340" cy="40" r="65" fill="#f43f5e" opacity="0.12"/>
+  <circle cx="55" cy="220" r="55" fill="#f43f5e" opacity="0.10"/>
+  <rect x="75" y="80" width="250" height="92" rx="12" fill="#0f172a" stroke="#fb7185" stroke-width="4"/><circle cx="145" cy="126" r="30" fill="#1e293b" stroke="#f43f5e" stroke-width="3"/><circle cx="245" cy="126" r="30" fill="#1e293b" stroke="#f43f5e" stroke-width="3"/><circle cx="145" cy="126" r="8" fill="#fb7185"/><circle cx="245" cy="126" r="8" fill="#fb7185"/><rect x="100" y="172" width="110" height="9" rx="2" fill="#fbbf24"/>
+  <text x="200" y="236" text-anchor="middle" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="2">GRAPHICS CARD</text>
+</svg>

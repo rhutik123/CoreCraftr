@@ -1,32 +1,176 @@
-{% extends 'store/main.html' %}
-{% load static %}
-{% block content %}
+{% extends 'base.html' %}
 
-<div class="container neu">
-    <h1>Product Details</h1>
-    <div class="row">
-        <div class="col-lg-5">
-            <img src="{{ product.image.url }}" width="400" class="pt-5" height="300" alt="">
-        </div>
-        <div class="col">
-            <h2>{{ product.name }}</h2><hr>
-            <h4>Price : Rs. {{ product.price }}</h4>
-            <p>Ratings &nbsp;: &nbsp;&nbsp;
-            <span class="fa fa-star checked"></span>
-            <span class="fa fa-star checked"></span>
-            <span class="fa fa-star checked"></span>
-            <span class="fa fa-star checked"></span>
-            <span class="fa fa-star"></span></p>
-            <h5>Details :<hr>
-                <p style="font-family: monospace; font-size: large;">{{ product.description }}</p>
-                <hr>
-                <button data-product="{{ product.id }}" data-action="add" class="btn btn-success update-cart">Add to
-                    cart</button>
-                    <a class="btn btn-info" href = "mailto: rhutikbhoir2002@gmail.com">Ask for help!</a>
-            </h5>
-        </div>
+{% block title %}{{ product.name }} | HardwareHub{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'store' %}">Catalogue</a></li>
+    {% if product.category %}
+    <li class="breadcrumb-item"><a href="{% url 'category_detail' product.category.slug %}">{{ product.category.name }}</a></li>
+    {% endif %}
+    <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+  </ol>
+</nav>
+
+<div class="hh-card p-4 mb-4">
+  <div class="row g-4 align-items-start">
+    <div class="col-md-5">
+      <div class="rounded-3 overflow-hidden bg-dark border">
+        <img src="{{ product.imageURL }}" alt="{{ product.name }}" class="img-fluid w-100" style="max-height: 360px; object-fit: cover;">
+      </div>
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        {% if product.spec_verified %}
+        <span class="badge text-bg-success"><i class="bi bi-patch-check me-1"></i>Verified Specs</span>
+        {% else %}
+        <span class="badge text-bg-secondary"><i class="bi bi-question-circle me-1"></i>Partial Specs</span>
+        {% endif %}
+        {% if product.is_demo_data %}
+        <span class="badge text-bg-light border text-dark">Curated Demo Catalogue</span>
+        {% endif %}
+        {% if product.sku %}
+        <span class="badge text-bg-light border text-dark">SKU: {{ product.sku }}</span>
+        {% endif %}
+      </div>
     </div>
+
+    <div class="col-md-7">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-uppercase text-primary fw-semibold small">{{ product.brand.name|default:"Hardware" }}</span>
+        <span class="small text-muted"><i class="bi bi-star-fill text-warning me-1"></i>{{ product.rating_avg }} / 5.0</span>
+      </div>
+      <h1 class="h3 fw-bold mb-2">{{ product.name }}</h1>
+      {% if product.short_description %}
+      <p class="text-muted mb-3">{{ product.short_description }}</p>
+      {% endif %}
+
+      <div class="d-flex align-items-baseline gap-3 mb-3">
+        <span class="display-6 fw-bold text-dark">Rs. {{ product.price|floatformat:2 }}</span>
+        {% if product.original_price and product.original_price > product.price %}
+        <span class="text-muted text-decoration-line-through fs-5">Rs. {{ product.original_price|floatformat:2 }}</span>
+        <span class="badge text-bg-danger">Save {{ product.discount_percent }}%</span>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        {% if product.in_stock %}
+        <span class="badge text-bg-success fs-6"><i class="bi bi-check2-circle me-1"></i>{{ product.inventory.stock_status_label }}</span>
+        {% else %}
+        <span class="badge text-bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Out of Stock</span>
+        {% endif %}
+        <span class="ms-2 small text-muted"><i class="bi bi-shield-check me-1"></i>{{ product.warranty_months }}-month warranty</span>
+      </div>
+
+      <p class="mb-4">{{ product.description }}</p>
+
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button data-product="{{ product.id }}" data-action="add" class="btn btn-primary btn-lg update-cart" {% if not product.in_stock %}disabled{% endif %}>
+          <i class="bi bi-cart-plus me-2"></i>Add to Cart
+        </button>
+
+        {% if product.category and product.category.is_pc_component %}
+        <form method="post" action="{% url 'builder_set_component' %}">
+          {% csrf_token %}
+          <input type="hidden" name="slot" value="{{ product.category.component_slot }}">
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          <button type="submit" class="btn btn-info btn-lg fw-semibold">
+            <i class="bi bi-tools me-1"></i>Use in PC Builder
+          </button>
+        </form>
+        {% endif %}
+
+        {% if request.user.is_authenticated %}
+        <form method="post" action="{% url 'toggle_wishlist' product.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-lg {% if in_wishlist %}btn-danger{% else %}btn-outline-danger{% endif %}">
+            <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+          </button>
+        </form>
+        {% endif %}
+
+        <form method="post" action="{% url 'toggle_compare' product.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn btn-lg {% if in_compare %}btn-dark{% else %}btn-outline-dark{% endif %}">
+            <i class="bi bi-columns-gap me-1"></i>{% if in_compare %}In Compare{% else %}Compare{% endif %}
+          </button>
+        </form>
+      </div>
+
+      {% if product.spec_source %}
+      <small class="text-muted d-block"><i class="bi bi-journal-check me-1"></i>Specification Reference: {{ product.spec_source }}</small>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
+<!-- Structured Technical Specifications -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="hh-card p-4">
+      <h4 class="fw-bold mb-3">Technical Specifications</h4>
+      {% if spec_profile %}
+      <div class="row g-2 mb-3">
+        {% if spec_profile.socket %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Socket</small><strong>{{ spec_profile.socket }}</strong></div></div>{% endif %}
+        {% if spec_profile.chipset %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Chipset</small><strong>{{ spec_profile.chipset }}</strong></div></div>{% endif %}
+        {% if spec_profile.memory_type %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Memory Type</small><strong>{{ spec_profile.memory_type }}</strong></div></div>{% endif %}
+        {% if spec_profile.form_factor %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Form Factor</small><strong>{{ spec_profile.form_factor }}</strong></div></div>{% endif %}
+        {% if spec_profile.tdp_watts %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">TDP</small><strong>{{ spec_profile.tdp_watts }} W</strong></div></div>{% endif %}
+        {% if spec_profile.wattage %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Wattage</small><strong>{{ spec_profile.wattage }} W</strong></div></div>{% endif %}
+        {% if spec_profile.gpu_length_mm %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">GPU Length</small><strong>{{ spec_profile.gpu_length_mm }} mm</strong></div></div>{% endif %}
+        {% if spec_profile.max_gpu_length_mm %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Max GPU Clearance</small><strong>{{ spec_profile.max_gpu_length_mm }} mm</strong></div></div>{% endif %}
+        {% if spec_profile.max_cooler_height_mm %}<div class="col-sm-4"><div class="p-2 bg-light rounded border"><small class="text-muted d-block">Max Cooler Height</small><strong>{{ spec_profile.max_cooler_height_mm }} mm</strong></div></div>{% endif %}
+      </div>
+      {% endif %}
 
-{% endblock content %}
+      {% if grouped_specs %}
+      {% for group, specs in grouped_specs.items %}
+      <h6 class="fw-bold text-primary mt-3">{{ group }}</h6>
+      <table class="table table-sm table-striped border">
+        <tbody>
+          {% for spec in specs %}
+          <tr>
+            <th class="w-40 text-muted fw-semibold">{{ spec.spec_key }}</th>
+            <td>{{ spec.formatted_value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endfor %}
+      {% else %}
+      <p class="text-muted small mb-0">Additional datasheet attributes are summarized above.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="hh-card p-4">
+      <h5 class="fw-bold mb-2">Beginner Summary</h5>
+      {% if spec_profile and spec_profile.beginner_summary %}
+      <p class="small mb-3">{{ spec_profile.beginner_summary }}</p>
+      {% if spec_profile.tradeoffs_note %}
+      <div class="alert alert-warning py-2 px-3 small mb-0">
+        <strong>Trade-off Note:</strong> {{ spec_profile.tradeoffs_note }}
+      </div>
+      {% endif %}
+      {% else %}
+      <p class="small text-muted mb-0">Use our Beginner PC Builder to see how this component pairs with your budget and workload.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if related_products %}
+<section>
+  <h4 class="fw-bold mb-3">Related Hardware</h4>
+  <div class="row g-3">
+    {% for rel in related_products %}
+    <div class="col-sm-6 col-lg-3">
+      {% include 'store/partials/product_card.html' with product=rel %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

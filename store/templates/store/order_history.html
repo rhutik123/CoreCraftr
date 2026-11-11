@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Order History | HardwareHub{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 fw-bold mb-0">Your Order History</h1>
+  <a href="{% url 'profile' %}" class="btn btn-outline-secondary btn-sm">Back to Profile</a>
+</div>
+
+{% if orders %}
+<div class="d-flex flex-column gap-3">
+  {% for order in orders %}
+  <div class="hh-card p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-3 gap-2">
+      <div>
+        <span class="fw-bold text-primary">{{ order.order_number }}</span>
+        <span class="text-muted small ms-2">{{ order.date_ordered|date:"M d, Y H:i" }}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge text-bg-success">{{ order.get_status_display }}</span>
+        <span class="badge text-bg-light border text-dark">{{ order.get_payment_method_display }}</span>
+        <span class="fw-bold fs-6">Rs. {{ order.total_amount|floatformat:2 }}</span>
+      </div>
+    </div>
+    <ul class="list-unstyled small mb-2">
+      {% for item in order.orderitem_set.all %}
+      <li>{{ item.quantity }}x {{ item.product_name_snapshot|default:item.product.name }} — Rs. {{ item.get_total|floatformat:2 }}</li>
+      {% endfor %}
+    </ul>
+    <a href="{% url 'order_confirmation' order.order_number %}" class="btn btn-sm btn-outline-primary">View Receipt</a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="hh-card p-5 text-center">
+  <i class="bi bi-box-seam fs-1 text-muted mb-2 d-block"></i>
+  <h5>No completed orders yet</h5>
+  <p class="text-muted small">Once you place a demo order, it will appear here.</p>
+  <a href="{% url 'store' %}" class="btn btn-primary btn-sm">Browse Hardware</a>
+</div>
+{% endif %}
+{% endblock %}

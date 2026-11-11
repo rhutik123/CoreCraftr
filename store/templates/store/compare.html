@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Compare Hardware | HardwareHub{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 fw-bold mb-1">Side-by-Side Hardware Comparison</h1>
+    <small class="text-muted">Highlighted rows indicate differences between selected products.</small>
+  </div>
+  {% if products %}
+  <form method="post" action="{% url 'clear_compare' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-danger btn-sm">Clear Comparison</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if products %}
+<div class="hh-card p-3 table-responsive">
+  <table class="table table-bordered align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th style="min-width: 180px;">Specification</th>
+        {% for product in products %}
+        <th class="text-center" style="min-width: 220px;">
+          <img src="{{ product.imageURL }}" alt="{{ product.name }}" class="hh-thumb-sm mb-2 d-block mx-auto">
+          <a href="{% url 'detail' product.id %}" class="fw-bold text-decoration-none d-block">{{ product.name }}</a>
+          <form method="post" action="{% url 'toggle_compare' product.id %}" class="mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'compare' %}">
+            <button type="submit" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2">Remove</button>
+          </form>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="{% if row.differs %}hh-spec-diff{% endif %}">
+        <th class="small text-muted">
+          {{ row.label }}
+          {% if row.differs %}<span class="badge text-bg-warning ms-1">Differs</span>{% endif %}
+        </th>
+        {% for val in row.values %}
+        <td class="text-center small {% if row.differs %}fw-semibold{% endif %}">{{ val }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="hh-card p-5 text-center">
+  <i class="bi bi-columns-gap fs-1 text-muted mb-2 d-block"></i>
+  <h5>No products selected for comparison</h5>
+  <p class="text-muted small">Click the Compare icon on any product in the catalogue to compare specs side by side.</p>
+  <a href="{% url 'store' %}" class="btn btn-primary btn-sm">Browse Hardware Catalogue</a>
+</div>
+{% endif %}
+{% endblock %}
