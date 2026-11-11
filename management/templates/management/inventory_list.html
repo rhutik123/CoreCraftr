@@ -1,128 +1,136 @@
 {% extends "management/base_portal.html" %}
 
 {% block portal_title %}Stock Control{% endblock %}
-{% block page_heading %}Atomic Inventory & Stock Control{% endblock %}
+{% block page_heading %}Atomic Inventory &amp; Stock Control{% endblock %}
 {% block page_subheading %}Transaction-locked stock adjustments with mandatory reason tracking and audit history{% endblock %}
 
 {% block portal_content %}
-<div class="portal-card mb-3 p-3">
-  <form method="get" class="row g-2 align-items-end">
-    <div class="col-md-5">
-      <label class="form-label form-label-sm mb-1">Search SKU / Product</label>
-      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Filter by SKU or product name...">
+<form method="get" class="cc-card p-4 mb-5">
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+    <div class="md:col-span-5">
+      <label class="cc-label">Search SKU / Product</label>
+      <input type="text" name="q" value="{{ q }}" class="cc-input cc-input-sm" placeholder="Filter by SKU or product name...">
     </div>
-    <div class="col-md-4">
-      <label class="form-label form-label-sm mb-1">Stock State</label>
-      <select name="state" class="form-select form-select-sm">
+    <div class="md:col-span-4">
+      <label class="cc-label">Stock State</label>
+      <select name="state" class="cc-select cc-input-sm">
         <option value="">All Products</option>
         <option value="out" {% if state == 'out' %}selected{% endif %}>Out of Stock (0)</option>
-        <option value="low" {% if state == 'low' %}selected{% endif %}>Low Stock (<= Threshold)</option>
+        <option value="low" {% if state == 'low' %}selected{% endif %}>Low Stock (&lt;= Threshold)</option>
         <option value="healthy" {% if state == 'healthy' %}selected{% endif %}>Healthy Stock</option>
       </select>
     </div>
-    <div class="col-md-3 d-flex gap-2">
-      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filter</button>
-      <a href="{% url 'management:stock_history' %}" class="btn btn-outline-secondary btn-sm">Stock Ledger</a>
+    <div class="md:col-span-3 flex gap-2">
+      <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm flex-1">Apply Filter</button>
+      <a href="{% url 'management:stock_history' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Stock Ledger</a>
     </div>
-  </form>
-</div>
-
-<div class="portal-card">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Product / SKU</th>
-          <th>On Hand</th>
-          <th>Threshold</th>
-          <th>Adjust Stock Atomically</th>
-          <th>Threshold Settings</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in page_obj %}
-        {% with p=row.product inv=row.inventory %}
-        <tr>
-          <td>
-            <div class="fw-semibold"><a href="{% url 'management:product_edit' p.id %}" class="text-decoration-none">{{ p.name }}</a></div>
-            <div class="small text-muted"><code>{{ p.sku }}</code> · {{ p.category.name }} · {{ p.get_status_display }}</div>
-          </td>
-          <td>
-            <div class="fw-bold fs-6">{{ inv.quantity|default:0 }}</div>
-            <div class="small text-muted">Avail: {{ inv.available_quantity|default:0 }} (Res: {{ inv.reserved_quantity|default:0 }})</div>
-            {% if not inv or inv.available_quantity <= 0 %}
-              <span class="badge bg-danger">Out of Stock</span>
-            {% elif inv.is_low_stock %}
-              <span class="badge bg-warning text-dark">Low Stock</span>
-            {% else %}
-              <span class="badge bg-success">In Stock</span>
-            {% endif %}
-          </td>
-          <td class="small">
-            <div>Alert <= <strong>{{ inv.low_stock_threshold|default:3 }}</strong></div>
-            {% if inv and inv.restock_date %}<div class="text-muted">Restock: {{ inv.restock_date }}</div>{% endif %}
-          </td>
-          <td style="min-width: 340px;">
-            <form method="post" action="{% url 'management:inventory_adjust' p.id %}" class="row g-1 align-items-center">
-              {% csrf_token %}
-              <input type="hidden" name="expected_version_token" value="{{ row.version_token }}">
-              <div class="col-4">
-                <select name="adjustment_mode" class="form-select form-select-sm" aria-label="Mode">
-                  {% for mcode, mlabel in mode_choices %}
-                  <option value="{{ mcode }}">{{ mlabel }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-3">
-                <input type="number" name="quantity_value" min="0" value="1" class="form-control form-control-sm" required aria-label="Quantity">
-              </div>
-              <div class="col-5">
-                <select name="reason" class="form-select form-select-sm" aria-label="Reason">
-                  {% for rcode, rlabel in reason_choices %}
-                  <option value="{{ rcode }}">{{ rlabel }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-8 mt-1">
-                <input type="text" name="notes" class="form-control form-control-sm" placeholder="Optional note / PO #">
-              </div>
-              <div class="col-4 mt-1 d-grid">
-                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-              </div>
-            </form>
-          </td>
-          <td style="min-width: 210px;">
-            <form method="post" action="{% url 'management:inventory_settings' p.id %}" class="d-flex flex-column gap-1">
-              {% csrf_token %}
-              <div class="input-group input-group-sm">
-                <span class="input-group-text">Min</span>
-                <input type="number" name="low_stock_threshold" min="0" value="{{ inv.low_stock_threshold|default:3 }}" class="form-control form-control-sm">
-                <button type="submit" class="btn btn-outline-secondary btn-sm">Save</button>
-              </div>
-              <input type="date" name="restock_date" value="{% if inv and inv.restock_date %}{{ inv.restock_date|date:'Y-m-d' }}{% endif %}" class="form-control form-control-sm" title="Expected restock date">
-            </form>
-          </td>
-        </tr>
-        {% endwith %}
-        {% empty %}
-        <tr><td colspan="5" class="text-center text-muted py-4">No products found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
   </div>
+</form>
+
+<div class="cc-table-wrap">
+  <table class="cc-table">
+    <thead>
+      <tr>
+        <th>Product / SKU</th>
+        <th>On Hand</th>
+        <th>Threshold</th>
+        <th>Adjust Stock Atomically</th>
+        <th>Threshold Settings</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page_obj %}
+        {% with p=row.product inv=row.inventory %}
+          <tr>
+            <td class="align-top">
+              <div class="font-bold text-ink text-xs sm:text-sm">
+                <a href="{% url 'management:product_edit' p.id %}" class="hover:text-accent-ink transition-colors">{{ p.name }}</a>
+              </div>
+              <div class="text-xs text-muted mt-0.5">
+                <code class="cc-mono text-accent-ink">{{ p.sku }}</code> &middot; {{ p.category.name }} &middot; {{ p.get_status_display }}
+              </div>
+            </td>
+
+            <td class="align-top">
+              <div class="text-base font-extrabold text-ink cc-mono">{{ inv.quantity|default:0 }}</div>
+              <div class="text-[11px] text-muted cc-mono mb-1.5">Avail: {{ inv.available_quantity|default:0 }} (Res: {{ inv.reserved_quantity|default:0 }})</div>
+              {% if not inv or inv.available_quantity <= 0 %}
+                <span class="cc-badge cc-badge-incompatible text-[10px]">Out of Stock</span>
+              {% elif inv.is_low_stock %}
+                <span class="cc-badge cc-badge-warning text-[10px]">Low Stock</span>
+              {% else %}
+                <span class="cc-badge cc-badge-compatible text-[10px]">In Stock</span>
+              {% endif %}
+            </td>
+
+            <td class="align-top text-xs">
+              <div>Alert &lt;= <strong class="cc-mono text-ink">{{ inv.low_stock_threshold|default:3 }}</strong></div>
+              {% if inv and inv.restock_date %}
+                <div class="text-muted mt-0.5 cc-mono">Restock: {{ inv.restock_date }}</div>
+              {% endif %}
+            </td>
+
+            <td class="align-top min-w-[330px]">
+              <form method="post" action="{% url 'management:inventory_adjust' p.id %}" class="grid grid-cols-12 gap-1.5 items-center">
+                {% csrf_token %}
+                <input type="hidden" name="expected_version_token" value="{{ row.version_token }}">
+                <div class="col-span-4">
+                  <select name="adjustment_mode" class="cc-select cc-input-sm" aria-label="Mode">
+                    {% for mcode, mlabel in mode_choices %}
+                      <option value="{{ mcode }}">{{ mlabel }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-span-3">
+                  <input type="number" name="quantity_value" min="0" value="1" class="cc-input cc-input-sm cc-mono" required aria-label="Quantity">
+                </div>
+                <div class="col-span-5">
+                  <select name="reason" class="cc-select cc-input-sm" aria-label="Reason">
+                    {% for rcode, rlabel in reason_choices %}
+                      <option value="{{ rcode }}">{{ rlabel }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-span-8">
+                  <input type="text" name="notes" class="cc-input cc-input-sm" placeholder="Optional note / PO #">
+                </div>
+                <div class="col-span-4">
+                  <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm w-full">Apply</button>
+                </div>
+              </form>
+            </td>
+
+            <td class="align-top min-w-[205px]">
+              <form method="post" action="{% url 'management:inventory_settings' p.id %}" class="space-y-1.5">
+                {% csrf_token %}
+                <div class="flex items-stretch gap-1">
+                  <span class="px-2 py-1 text-xs font-semibold text-muted bg-elevated border border-border rounded-lg flex items-center">Min</span>
+                  <input type="number" name="low_stock_threshold" min="0" value="{{ inv.low_stock_threshold|default:3 }}" class="cc-input cc-input-sm cc-mono">
+                  <button type="submit" class="cc-btn cc-btn-secondary cc-btn-sm shrink-0">Save</button>
+                </div>
+                <input type="date" name="restock_date" value="{% if inv and inv.restock_date %}{{ inv.restock_date|date:'Y-m-d' }}{% endif %}" class="cc-input cc-input-sm cc-mono" title="Expected restock date">
+              </form>
+            </td>
+          </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="5" class="text-center text-xs text-muted py-8">No products found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
 {% if page_obj.has_other_pages %}
-<nav class="mt-3">
-  <ul class="pagination pagination-sm justify-content-center">
-    {% if page_obj.has_previous %}
-    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&state={{ state }}">Previous</a></li>
-    {% endif %}
-    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-    {% if page_obj.has_next %}
-    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&state={{ state }}">Next</a></li>
-    {% endif %}
-  </ul>
-</nav>
+  <nav class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-xs" aria-label="Inventory pagination">
+    <span class="text-muted cc-mono">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+        <a class="cc-btn cc-btn-secondary cc-btn-sm" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&state={{ state }}">Previous</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a class="cc-btn cc-btn-secondary cc-btn-sm" href="?page={{ page_obj.next_page_number }}&q={{ q }}&state={{ state }}">Next</a>
+      {% endif %}
+    </div>
+  </nav>
 {% endif %}
 {% endblock %}

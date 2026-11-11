@@ -4,205 +4,244 @@
 {% block title %}{{ product.name }} | CoreCraftr{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-3">
-  <ol class="breadcrumb small">
-    <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'store' %}">Catalogue</a></li>
-    {% if product.category %}
-    <li class="breadcrumb-item"><a href="{% url 'category_detail' product.category.slug %}">{{ product.category.name }}</a></li>
-    {% endif %}
-    <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
-  </ol>
+<!-- Breadcrumb Navigation -->
+<nav aria-label="Breadcrumb" class="mb-5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+  <a href="{% url 'home' %}" class="hover:text-ink transition-colors">Home</a>
+  <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+  <a href="{% url 'store' %}" class="hover:text-ink transition-colors">Catalogue</a>
+  {% if product.category %}
+    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+    <a href="{% url 'category_detail' product.category.slug %}" class="hover:text-ink transition-colors">{{ product.category.name }}</a>
+  {% endif %}
+  <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+  <span class="font-semibold text-ink truncate max-w-xs sm:max-w-md">{{ product.name }}</span>
 </nav>
 
-<div class="hh-card p-4 mb-4">
-  <div class="row g-4 align-items-start">
-    <div class="col-md-5">
-      <div class="rounded-3 overflow-hidden bg-dark border">
-        <img id="product-main-image" src="{{ product.imageURL }}" alt="{{ product.name }}" class="img-fluid w-100" style="max-height: 360px; object-fit: cover;">
+<!-- Main Product Stage -->
+<div class="cc-card p-5 sm:p-8 mb-6">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <!-- Left Image Gallery -->
+    <div class="lg:col-span-5 space-y-3">
+      <div class="cc-product-frame rounded-2xl border border-border overflow-hidden p-5 flex items-center justify-center aspect-[4/3]">
+        <img id="product-main-image" src="{{ product.imageURL }}" alt="{{ product.name }}" class="max-h-80 w-full object-contain">
       </div>
+
       {% if product.gallery_images.all|length > 1 %}
-      <div class="d-flex flex-wrap gap-2 mt-2">
-        {% for gimg in product.gallery_images.all %}
-        <button type="button" class="btn p-0 border rounded overflow-hidden bg-light" style="width: 68px; height: 68px;" onclick="document.getElementById('product-main-image').src='{{ gimg.url }}';" title="{{ gimg.alt_text|default:product.name }}">
-          <img src="{{ gimg.url }}" alt="{{ gimg.alt_text|default:product.name }}" class="w-100 h-100" style="object-fit: cover;">
-        </button>
-        {% endfor %}
-      </div>
+        <div class="flex flex-wrap gap-2">
+          {% for gimg in product.gallery_images.all %}
+            <button type="button" onclick="document.getElementById('product-main-image').src='{{ gimg.url }}';" title="{{ gimg.alt_text|default:product.name }}" class="cc-product-frame h-16 w-16 rounded-xl border border-border overflow-hidden p-1 hover:border-accent transition-colors cursor-pointer">
+              <img src="{{ gimg.url }}" alt="{{ gimg.alt_text|default:product.name }}" class="h-full w-full object-contain">
+            </button>
+          {% endfor %}
+        </div>
       {% endif %}
-      <div class="d-flex flex-wrap gap-2 mt-3">
+
+      <div class="flex flex-wrap gap-2 pt-1">
         {% if product.spec_verified %}
-        <span class="badge text-bg-success"><i class="bi bi-patch-check me-1"></i>Verified Specs</span>
+          <span class="cc-badge cc-badge-compatible"><i data-lucide="badge-check" class="w-3.5 h-3.5"></i>Verified Specs</span>
         {% else %}
-        <span class="badge text-bg-secondary"><i class="bi bi-question-circle me-1"></i>Partial Specs</span>
+          <span class="cc-badge cc-badge-unknown"><i data-lucide="circle-help" class="w-3.5 h-3.5"></i>Partial Specs</span>
         {% endif %}
         {% if product.is_demo_data %}
-        <span class="badge text-bg-light border text-dark">Curated Demo Catalogue</span>
+          <span class="cc-badge cc-badge-neutral">Curated Demo Catalogue</span>
         {% endif %}
         {% if product.sku %}
-        <span class="badge text-bg-light border text-dark">SKU: {{ product.sku }}</span>
+          <span class="cc-badge cc-badge-neutral cc-mono">SKU: {{ product.sku }}</span>
         {% endif %}
       </div>
     </div>
 
-    <div class="col-md-7">
-      <div class="d-flex justify-content-between align-items-center mb-1">
-        <span class="text-uppercase text-primary fw-semibold small">{{ product.brand.name|default:"Hardware" }}</span>
-        <span class="small text-muted"><i class="bi bi-star-fill text-warning me-1"></i>{{ product.rating_avg }} / 5.0</span>
+    <!-- Right Purchase & Spec Actions -->
+    <div class="lg:col-span-7 flex flex-col">
+      <div class="flex items-center justify-between gap-2 mb-1.5">
+        <span class="text-xs font-extrabold uppercase tracking-wider text-accent-ink">{{ product.brand.name|default:"Hardware" }}</span>
+        <span class="inline-flex items-center gap-1 text-xs text-muted cc-mono">
+          <i data-lucide="star" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>{{ product.rating_avg }} / 5.0</span>
+        </span>
       </div>
-      <h1 class="h3 fw-bold mb-2">{{ product.name }}</h1>
+
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight mb-2">{{ product.name }}</h1>
+
       {% if product.short_description %}
-      <p class="text-muted mb-3">{{ product.short_description }}</p>
+        <p class="text-sm text-muted leading-relaxed mb-4">{{ product.short_description }}</p>
       {% endif %}
 
-      <div class="d-flex align-items-baseline gap-3 mb-3">
-        <span class="display-6 fw-bold text-dark">{{ product.price|inr }}</span>
+      <div class="flex flex-wrap items-baseline gap-3 pb-4 mb-4 border-b border-border">
+        <span class="text-3xl sm:text-4xl font-extrabold text-ink cc-mono">{{ product.price|inr }}</span>
         {% if product.original_price and product.original_price > product.price %}
-        <span class="text-muted text-decoration-line-through fs-5">{{ product.original_price|inr }}</span>
-        <span class="badge text-bg-danger">Save {{ product.discount_percent }}%</span>
+          <span class="text-base text-muted line-through cc-mono">{{ product.original_price|inr }}</span>
+          <span class="cc-badge bg-red-600 text-white border-red-500 cc-mono">Save {{ product.discount_percent }}%</span>
         {% endif %}
       </div>
 
-      <div class="mb-3">
+      <div class="flex flex-wrap items-center gap-3 mb-5">
         {% if product.in_stock %}
-        <span class="badge text-bg-success fs-6"><i class="bi bi-check2-circle me-1"></i>{{ product.inventory.stock_status_label }}</span>
+          <span class="cc-badge cc-badge-compatible px-3 py-1 text-xs">
+            <i data-lucide="circle-check" class="w-3.5 h-3.5"></i>{{ product.inventory.stock_status_label }}
+          </span>
         {% else %}
-        <span class="badge text-bg-danger fs-6"><i class="bi bi-x-circle me-1"></i>Out of Stock</span>
+          <span class="cc-badge cc-badge-incompatible px-3 py-1 text-xs">
+            <i data-lucide="octagon-alert" class="w-3.5 h-3.5"></i>Out of Stock
+          </span>
         {% endif %}
-        <span class="ms-2 small text-muted"><i class="bi bi-shield-check me-1"></i>{{ product.warranty_months }}-month warranty</span>
+        <span class="inline-flex items-center gap-1.5 text-xs text-muted">
+          <i data-lucide="shield-check" class="w-4 h-4 text-tech-ink"></i>{{ product.warranty_months }}-month warranty
+        </span>
       </div>
 
-      <p class="mb-4">{{ product.description }}</p>
+      {% if product.description %}
+        <p class="text-sm text-ink/90 leading-relaxed mb-6">{{ product.description }}</p>
+      {% endif %}
 
-      <div class="d-flex flex-wrap gap-2 mb-3">
-        <button data-product="{{ product.id }}" data-action="add" class="btn btn-primary btn-lg update-cart" {% if not product.in_stock %}disabled{% endif %}>
-          <i class="bi bi-cart-plus me-2"></i>Add to Cart
+      <!-- CTA Bar -->
+      <div class="flex flex-wrap items-center gap-2.5 mb-4">
+        <button type="button" data-product="{{ product.id }}" data-action="add" class="cc-btn cc-btn-primary cc-btn-lg update-cart" {% if not product.in_stock %}disabled{% endif %}>
+          <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+          <span>Add to Cart</span>
         </button>
 
         {% if product.category and product.category.is_pc_component %}
-        <form method="post" action="{% url 'builder_set_component' %}">
-          {% csrf_token %}
-          <input type="hidden" name="slot" value="{{ product.category.component_slot }}">
-          <input type="hidden" name="product_id" value="{{ product.id }}">
-          <button type="submit" class="btn btn-info btn-lg fw-semibold">
-            <i class="bi bi-tools me-1"></i>Use in PC Builder
-          </button>
-        </form>
+          <form method="post" action="{% url 'builder_set_component' %}" class="inline-flex">
+            {% csrf_token %}
+            <input type="hidden" name="slot" value="{{ product.category.component_slot }}">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <button type="submit" class="cc-btn cc-btn-tech cc-btn-lg">
+              <i data-lucide="wrench" class="w-4 h-4"></i>
+              <span>Use in PC Builder</span>
+            </button>
+          </form>
         {% endif %}
 
         {% if request.user.is_authenticated %}
-        <form method="post" action="{% url 'toggle_wishlist' product.id %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-lg {% if in_wishlist %}btn-danger{% else %}btn-outline-danger{% endif %}">
-            <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
-          </button>
-        </form>
+          <form method="post" action="{% url 'toggle_wishlist' product.id %}" class="inline-flex">
+            {% csrf_token %}
+            <button type="submit" aria-label="Toggle wishlist" class="cc-btn cc-btn-lg {% if in_wishlist %}cc-btn-danger{% else %}cc-btn-secondary{% endif %}">
+              <i data-lucide="heart" class="w-4 h-4"></i>
+              <span class="hidden sm:inline">{% if in_wishlist %}Saved{% else %}Wishlist{% endif %}</span>
+            </button>
+          </form>
         {% endif %}
 
-        <form method="post" action="{% url 'toggle_compare' product.id %}">
+        <form method="post" action="{% url 'toggle_compare' product.id %}" class="inline-flex">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button type="submit" class="btn btn-lg {% if in_compare %}btn-dark{% else %}btn-outline-dark{% endif %}">
-            <i class="bi bi-columns-gap me-1"></i>{% if in_compare %}In Compare{% else %}Compare{% endif %}
+          <button type="submit" class="cc-btn cc-btn-lg {% if in_compare %}cc-btn-tech{% else %}cc-btn-secondary{% endif %}">
+            <i data-lucide="columns-3" class="w-4 h-4"></i>
+            <span>{% if in_compare %}In Compare{% else %}Compare{% endif %}</span>
           </button>
         </form>
       </div>
 
       {% if product.spec_source %}
-      <small class="text-muted d-block"><i class="bi bi-journal-check me-1"></i>Specification Reference: {{ product.spec_source }}</small>
+        <div class="text-xs text-muted flex items-center gap-1.5">
+          <i data-lucide="file-check-2" class="w-3.5 h-3.5 text-tech-ink"></i>
+          <span>Specification Reference: {{ product.spec_source }}</span>
+        </div>
       {% endif %}
     </div>
   </div>
 </div>
 
-<!-- Structured Technical Specifications -->
-<div class="row g-4 mb-4">
-  <div class="col-lg-8">
-    <div class="hh-card p-4">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h4 class="fw-bold mb-0">Technical Specifications</h4>
-        {% if product.spec_verified %}
-        <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">
-          <i class="bi bi-patch-check me-1"></i>Specs Verified
+<!-- Structured Technical Specifications + Beginner Summary -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-start">
+  <div class="lg:col-span-8 cc-card p-5 sm:p-6 space-y-5">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+      <h2 class="text-lg sm:text-xl font-bold text-ink">Technical Specifications</h2>
+      {% if product.spec_verified %}
+        <span class="cc-badge cc-badge-compatible">
+          <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>Specs Verified
         </span>
-        {% else %}
-        <span class="badge text-bg-secondary">Partial / Unverified Specs</span>
-        {% endif %}
-      </div>
+      {% else %}
+        <span class="cc-badge cc-badge-unknown">Partial / Unverified Specs</span>
+      {% endif %}
+    </div>
 
-      {% if key_highlights %}
-      <div class="row g-2 mb-3">
+    {% if key_highlights %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
         {% for attr in key_highlights %}
-        <div class="col-sm-4 col-md-3">
-          <div class="p-2 rounded border h-100 {% if attr.is_unknown %}bg-light border-dashed{% else %}bg-light{% endif %}">
-            <small class="text-muted d-block">{{ attr.label }}</small>
+          <div class="rounded-xl p-3 border {% if attr.is_unknown %}border-dashed border-border bg-elevated/40{% else %}border-border bg-elevated{% endif %}">
+            <div class="text-[11px] font-medium text-muted">{{ attr.label }}</div>
             {% if attr.is_unknown %}
-            <span class="badge text-bg-secondary mt-1">{{ attr.value }}</span>
+              <span class="cc-badge cc-badge-unknown mt-1.5 text-[11px]">{{ attr.value }}</span>
             {% else %}
-            <strong class="text-dark">{{ attr.value }}</strong>
+              <div class="mt-1 text-sm font-bold text-ink cc-mono">{{ attr.value }}</div>
             {% endif %}
           </div>
-        </div>
         {% endfor %}
       </div>
-      {% endif %}
+    {% endif %}
 
-      {% if spec_profile and spec_profile.min_bios_note %}
-      <div class="alert alert-warning py-2 px-3 small mb-2">
-        <i class="bi bi-cpu me-1"></i><strong>BIOS Note:</strong> {{ spec_profile.min_bios_note }}
+    {% if spec_profile and spec_profile.min_bios_note %}
+      <div class="cc-alert cc-alert-warning">
+        <div class="flex items-start gap-2">
+          <i data-lucide="cpu" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          <div><strong>BIOS Note:</strong> {{ spec_profile.min_bios_note }}</div>
+        </div>
       </div>
-      {% endif %}
-      {% if spec_profile and spec_profile.slot_sharing_notes %}
-      <div class="alert alert-info py-2 px-3 small mb-3">
-        <i class="bi bi-info-circle me-1"></i><strong>Expansion Note:</strong> {{ spec_profile.slot_sharing_notes }}
-      </div>
-      {% endif %}
+    {% endif %}
 
-      {% if grouped_specs %}
-      {% for group, specs in grouped_specs.items %}
-      <h6 class="fw-bold text-primary mt-3">{{ group }}</h6>
-      <table class="table table-sm table-striped border">
-        <tbody>
-          {% for spec in specs %}
-          <tr>
-            <th class="w-40 text-muted fw-semibold">{{ spec.spec_key }}</th>
-            <td>{{ spec.formatted_value }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endfor %}
-      {% else %}
-      <p class="text-muted small mb-0">Additional datasheet attributes are summarized above.</p>
-      {% endif %}
-    </div>
+    {% if spec_profile and spec_profile.slot_sharing_notes %}
+      <div class="cc-alert cc-alert-info">
+        <div class="flex items-start gap-2">
+          <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          <div><strong>Expansion Note:</strong> {{ spec_profile.slot_sharing_notes }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if grouped_specs %}
+      <div class="space-y-4">
+        {% for group, specs in grouped_specs.items %}
+          <div>
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-accent-ink mb-2">{{ group }}</h3>
+            <div class="cc-table-wrap">
+              <table class="cc-table">
+                <tbody>
+                  {% for spec in specs %}
+                    <tr>
+                      <th class="w-2/5 text-muted font-semibold bg-elevated/40">{{ spec.spec_key }}</th>
+                      <td class="text-ink cc-mono text-xs sm:text-sm">{{ spec.formatted_value }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-xs text-muted">Additional datasheet attributes are summarized above.</p>
+    {% endif %}
   </div>
 
-  <div class="col-lg-4">
-    <div class="hh-card p-4">
-      <h5 class="fw-bold mb-2">Beginner Summary</h5>
-      {% if spec_profile and spec_profile.beginner_summary %}
-      <p class="small mb-3">{{ spec_profile.beginner_summary }}</p>
+  <div class="lg:col-span-4 cc-card p-5 sm:p-6 space-y-4">
+    <h2 class="text-lg font-bold text-ink flex items-center gap-2">
+      <i data-lucide="sparkles" class="w-4 h-4 text-accent-ink"></i>
+      <span>Beginner Summary</span>
+    </h2>
+    {% if spec_profile and spec_profile.beginner_summary %}
+      <p class="text-sm text-muted leading-relaxed">{{ spec_profile.beginner_summary }}</p>
       {% if spec_profile.tradeoffs_note %}
-      <div class="alert alert-warning py-2 px-3 small mb-0">
-        <strong>Trade-off Note:</strong> {{ spec_profile.tradeoffs_note }}
-      </div>
+        <div class="cc-alert cc-alert-warning">
+          <div><strong>Trade-off Note:</strong> {{ spec_profile.tradeoffs_note }}</div>
+        </div>
       {% endif %}
-      {% else %}
-      <p class="small text-muted mb-0">Use our Beginner PC Builder to see how this component pairs with your budget and workload.</p>
-      {% endif %}
-    </div>
+    {% else %}
+      <p class="text-sm text-muted leading-relaxed">
+        Use our Beginner PC Builder to see how this component pairs with your budget and workload.
+      </p>
+      <a href="{% url 'pc_builder' %}?mode=beginner" class="cc-btn cc-btn-secondary cc-btn-sm w-full">Open Beginner Builder</a>
+    {% endif %}
   </div>
 </div>
 
 {% if related_products %}
 <section>
-  <h4 class="fw-bold mb-3">Related Hardware</h4>
-  <div class="row g-3">
+  <h2 class="text-xl font-bold text-ink mb-4">Related Hardware</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
     {% for rel in related_products %}
-    <div class="col-sm-6 col-lg-3">
       {% include 'store/partials/product_card.html' with product=rel %}
-    </div>
     {% endfor %}
   </div>
 </section>

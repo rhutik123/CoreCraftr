@@ -1,0 +1,473 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+@source "../templates/**/*.html";
+@source "../store/templates/**/*.html";
+@source "../pc_builder/templates/**/*.html";
+@source "../management/templates/**/*.html";
+@source "../store/forms.py";
+@source "../pc_builder/forms.py";
+@source "../management/forms.py";
+@source "../static/js/**/*.js";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-canvas: var(--cc-bg);
+  --color-surface: var(--cc-surface);
+  --color-elevated: var(--cc-elevated);
+  --color-hover: var(--cc-hover);
+  --color-border: var(--cc-border);
+  --color-ink: var(--cc-text);
+  --color-muted: var(--cc-text-muted);
+  --color-accent: var(--cc-accent);
+  --color-accent-hover: var(--cc-accent-hover);
+  --color-accent-ink: var(--cc-accent-ink);
+  --color-on-accent: var(--cc-on-accent);
+  --color-tech: var(--cc-secondary);
+  --color-tech-hover: var(--cc-secondary-hover);
+  --color-tech-ink: var(--cc-secondary-ink);
+}
+
+/* ==========================================================================
+   CoreCraftr Theme Tokens — Dark-First + Light Mode
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+  --cc-bg: #10141B;
+  --cc-surface: #191F29;
+  --cc-elevated: #252E3B;
+  --cc-hover: #2E3949;
+  --cc-border: #2F3A4A;
+  --cc-border-subtle: rgba(231, 237, 245, 0.08);
+  --cc-text: #E7EDF5;
+  --cc-text-muted: #98A6B8;
+
+  --cc-accent: #F47738;
+  --cc-accent-hover: #FF884D;
+  --cc-accent-ink: #FF945C;
+  --cc-on-accent: #0D1117;
+
+  --cc-secondary: #62A6F8;
+  --cc-secondary-hover: #7DB6FA;
+  --cc-secondary-ink: #7DB6FA;
+
+  --cc-success-bg: rgba(34, 197, 94, 0.14);
+  --cc-success-border: rgba(34, 197, 94, 0.38);
+  --cc-success-text: #4ADE80;
+
+  --cc-warning-bg: rgba(245, 158, 11, 0.14);
+  --cc-warning-border: rgba(245, 158, 11, 0.42);
+  --cc-warning-text: #FBBF24;
+
+  --cc-danger-bg: rgba(239, 68, 68, 0.15);
+  --cc-danger-border: rgba(239, 68, 68, 0.42);
+  --cc-danger-text: #FCA5A5;
+
+  --cc-unknown-bg: rgba(148, 163, 184, 0.14);
+  --cc-unknown-border: rgba(148, 163, 184, 0.34);
+  --cc-unknown-text: #CBD5E1;
+
+  --cc-shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.55);
+  --cc-shadow-hover: 0 18px 40px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(244, 119, 56, 0.25);
+  --cc-grid-line: rgba(231, 237, 245, 0.03);
+}
+
+html.light {
+  color-scheme: light;
+  --cc-bg: #F6F7F9;
+  --cc-surface: #FFFFFF;
+  --cc-elevated: #E9EDF2;
+  --cc-hover: #DFE5EE;
+  --cc-border: #D2DAE5;
+  --cc-border-subtle: rgba(32, 39, 51, 0.08);
+  --cc-text: #202733;
+  --cc-text-muted: #556173;
+
+  --cc-accent: #E9672C;
+  --cc-accent-hover: #D6571E;
+  --cc-accent-ink: #C24510;
+  --cc-on-accent: #FFFFFF;
+
+  --cc-secondary: #287DD6;
+  --cc-secondary-hover: #1E69B8;
+  --cc-secondary-ink: #1D63AF;
+
+  --cc-success-bg: #DCFCE7;
+  --cc-success-border: #86EFAC;
+  --cc-success-text: #166534;
+
+  --cc-warning-bg: #FEF3C7;
+  --cc-warning-border: #FCD34D;
+  --cc-warning-text: #92400E;
+
+  --cc-danger-bg: #FEE2E2;
+  --cc-danger-border: #FCA5A5;
+  --cc-danger-text: #991B1B;
+
+  --cc-unknown-bg: #EEF2F6;
+  --cc-unknown-border: #CBD5E1;
+  --cc-unknown-text: #334155;
+
+  --cc-shadow-card: 0 4px 18px -6px rgba(15, 23, 42, 0.09);
+  --cc-shadow-hover: 0 14px 32px -10px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(233, 103, 44, 0.28);
+  --cc-grid-line: rgba(32, 39, 51, 0.04);
+}
+
+/* Base layer overrides */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--cc-bg);
+    color: var(--cc-text);
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--cc-bg);
+    color: var(--cc-text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--cc-accent) 28%, transparent);
+    color: var(--cc-text);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--cc-secondary);
+    outline-offset: 2px;
+  }
+
+  /* Respect user motion preferences globally */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   Reusable UI Primitives & Component Patterns
+   ========================================================================== */
+@layer components {
+  .cc-container {
+    @apply mx-auto w-full max-w-[1380px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .cc-grid-bg {
+    background-image:
+      linear-gradient(to right, var(--cc-grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--cc-grid-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .cc-card {
+    background-color: var(--cc-surface);
+    border: 1px solid var(--cc-border);
+    box-shadow: var(--cc-shadow-card);
+    @apply rounded-2xl transition-all duration-200;
+  }
+
+  .cc-card-hover:hover {
+    border-color: color-mix(in srgb, var(--cc-accent) 45%, var(--cc-border));
+    box-shadow: var(--cc-shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  .cc-panel-elevated {
+    background-color: var(--cc-elevated);
+    border: 1px solid var(--cc-border);
+    @apply rounded-xl;
+  }
+
+  /* Buttons */
+  .cc-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-sm leading-none transition-all duration-150 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed select-none px-4 py-2.5;
+  }
+
+  .cc-btn-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg gap-1.5;
+  }
+
+  .cc-btn-lg {
+    @apply px-5 py-3.5 text-base rounded-xl gap-2.5;
+  }
+
+  .cc-btn-primary {
+    background-color: var(--cc-accent);
+    color: var(--cc-on-accent);
+    border: 1px solid transparent;
+    box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--cc-accent) 45%, transparent);
+  }
+  .cc-btn-primary:hover:not(:disabled) {
+    background-color: var(--cc-accent-hover);
+    transform: translateY(-1px);
+  }
+
+  .cc-btn-secondary {
+    background-color: var(--cc-elevated);
+    color: var(--cc-text);
+    border: 1px solid var(--cc-border);
+  }
+  .cc-btn-secondary:hover:not(:disabled) {
+    background-color: var(--cc-hover);
+    border-color: color-mix(in srgb, var(--cc-secondary) 45%, var(--cc-border));
+  }
+
+  .cc-btn-tech {
+    background-color: color-mix(in srgb, var(--cc-secondary) 16%, transparent);
+    color: var(--cc-secondary-ink);
+    border: 1px solid color-mix(in srgb, var(--cc-secondary) 40%, transparent);
+  }
+  .cc-btn-tech:hover:not(:disabled) {
+    background-color: var(--cc-secondary);
+    color: #FFFFFF;
+  }
+
+  .cc-btn-outline {
+    background-color: transparent;
+    color: var(--cc-text);
+    border: 1px solid var(--cc-border);
+  }
+  .cc-btn-outline:hover:not(:disabled) {
+    background-color: var(--cc-elevated);
+    border-color: var(--cc-accent);
+  }
+
+  .cc-btn-ghost {
+    background-color: transparent;
+    color: var(--cc-text-muted);
+    border: 1px solid transparent;
+  }
+  .cc-btn-ghost:hover:not(:disabled) {
+    background-color: var(--cc-elevated);
+    color: var(--cc-text);
+  }
+
+  .cc-btn-success {
+    background-color: #16A34A;
+    color: #FFFFFF;
+    border: 1px solid transparent;
+  }
+  .cc-btn-success:hover:not(:disabled) {
+    background-color: #15803D;
+  }
+
+  .cc-btn-danger {
+    background-color: var(--cc-danger-bg);
+    color: var(--cc-danger-text);
+    border: 1px solid var(--cc-danger-border);
+  }
+  .cc-btn-danger:hover:not(:disabled) {
+    background-color: #DC2626;
+    color: #FFFFFF;
+    border-color: #DC2626;
+  }
+
+  /* Semantic Badges & Status Banners */
+  .cc-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold leading-tight tracking-tight border;
+  }
+
+  .cc-badge-neutral {
+    background-color: var(--cc-elevated);
+    border-color: var(--cc-border);
+    color: var(--cc-text-muted);
+  }
+
+  .cc-badge-accent {
+    background-color: color-mix(in srgb, var(--cc-accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--cc-accent) 38%, transparent);
+    color: var(--cc-accent-ink);
+  }
+
+  .cc-badge-tech {
+    background-color: color-mix(in srgb, var(--cc-secondary) 15%, transparent);
+    border-color: color-mix(in srgb, var(--cc-secondary) 38%, transparent);
+    color: var(--cc-secondary-ink);
+  }
+
+  .cc-badge-compatible, .cc-status-compatible {
+    background-color: var(--cc-success-bg);
+    border-color: var(--cc-success-border);
+    color: var(--cc-success-text);
+  }
+
+  .cc-badge-warning, .cc-status-warning {
+    background-color: var(--cc-warning-bg);
+    border-color: var(--cc-warning-border);
+    color: var(--cc-warning-text);
+  }
+
+  .cc-badge-incompatible, .cc-status-incompatible {
+    background-color: var(--cc-danger-bg);
+    border-color: var(--cc-danger-border);
+    color: var(--cc-danger-text);
+  }
+
+  .cc-badge-unknown, .cc-status-unknown {
+    background-color: var(--cc-unknown-bg);
+    border-color: var(--cc-unknown-border);
+    color: var(--cc-unknown-text);
+  }
+
+  /* Alerts */
+  .cc-alert {
+    @apply flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm;
+  }
+  .cc-alert-success {
+    background-color: var(--cc-success-bg);
+    border-color: var(--cc-success-border);
+    color: var(--cc-success-text);
+  }
+  .cc-alert-warning {
+    background-color: var(--cc-warning-bg);
+    border-color: var(--cc-warning-border);
+    color: var(--cc-warning-text);
+  }
+  .cc-alert-danger, .cc-alert-error {
+    background-color: var(--cc-danger-bg);
+    border-color: var(--cc-danger-border);
+    color: var(--cc-danger-text);
+  }
+  .cc-alert-info, .cc-alert-secondary {
+    background-color: color-mix(in srgb, var(--cc-secondary) 14%, transparent);
+    border-color: color-mix(in srgb, var(--cc-secondary) 36%, transparent);
+    color: var(--cc-secondary-ink);
+  }
+
+  /* Unified Form Inputs (both semantic .cc-input AND Django form widget compatibility) */
+  .cc-input, .cc-select, .cc-textarea,
+  input.form-control, select.form-select, select.form-control, textarea.form-control {
+    background-color: var(--cc-elevated);
+    color: var(--cc-text);
+    border: 1px solid var(--cc-border);
+    @apply w-full rounded-xl px-3.5 py-2.5 text-sm leading-snug transition-colors duration-150;
+  }
+
+  .cc-input-sm {
+    @apply px-2.5 py-1.5 text-xs rounded-lg;
+  }
+
+  .cc-input::placeholder, input.form-control::placeholder, textarea.form-control::placeholder {
+    color: var(--cc-text-muted);
+    opacity: 0.78;
+  }
+
+  .cc-input:focus, .cc-select:focus, .cc-textarea:focus,
+  input.form-control:focus, select.form-select:focus, select.form-control:focus, textarea.form-control:focus {
+    outline: none;
+    border-color: var(--cc-secondary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--cc-secondary) 22%, transparent);
+  }
+
+  .cc-checkbox, input[type="checkbox"].form-check-input {
+    accent-color: var(--cc-accent);
+    border: 1px solid var(--cc-border);
+    background-color: var(--cc-elevated);
+    @apply h-4 w-4 rounded cursor-pointer align-middle;
+  }
+
+  input[type="file"].cc-input, input[type="file"].form-control {
+    @apply py-2 text-xs file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:cursor-pointer;
+  }
+  input[type="file"].cc-input::file-selector-button,
+  input[type="file"].form-control::file-selector-button {
+    background-color: var(--cc-surface);
+    color: var(--cc-text);
+    border: 1px solid var(--cc-border);
+  }
+
+  .cc-label {
+    color: var(--cc-text);
+    @apply block text-xs font-semibold uppercase tracking-wider mb-1.5;
+  }
+
+  ul.errorlist {
+    color: var(--cc-danger-text);
+    @apply mt-1.5 list-none text-xs font-medium space-y-0.5 p-0;
+  }
+
+  /* Data Tables */
+  .cc-table-wrap {
+    border: 1px solid var(--cc-border);
+    background-color: var(--cc-surface);
+    @apply overflow-x-auto rounded-2xl;
+  }
+
+  .cc-table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+
+  .cc-table thead th {
+    background-color: var(--cc-elevated);
+    color: var(--cc-text-muted);
+    border-bottom: 1px solid var(--cc-border);
+    @apply px-4 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap;
+  }
+
+  .cc-table tbody td {
+    border-bottom: 1px solid var(--cc-border-subtle);
+    @apply px-4 py-3 align-middle;
+  }
+
+  .cc-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .cc-table tbody tr:hover {
+    background-color: color-mix(in srgb, var(--cc-elevated) 55%, transparent);
+  }
+
+  /* Monospace numbers/prices/SKUs */
+  .cc-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Toast Notification Container */
+  .cc-toast-stack {
+    @apply fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0;
+  }
+
+  .cc-toast {
+    background-color: var(--cc-surface);
+    color: var(--cc-text);
+    border: 1px solid var(--cc-border);
+    box-shadow: 0 20px 38px -12px rgba(0, 0, 0, 0.55);
+    @apply pointer-events-auto flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-medium;
+  }
+
+  /* Image presentation frame for dark/light readability */
+  .cc-product-frame {
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.96) 0%, rgba(235, 240, 247, 0.96) 100%);
+    border-bottom: 1px solid var(--cc-border);
+  }
+  html.light .cc-product-frame {
+    background: linear-gradient(180deg, #F8FAFC 0%, #EFF3F8 100%);
+  }
+
+  /* Sidebar active nav links (Portal) */
+  .cc-portal-link {
+    color: var(--cc-text-muted);
+    @apply flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150;
+  }
+  .cc-portal-link:hover {
+    background-color: var(--cc-elevated);
+    color: var(--cc-text);
+  }
+  .cc-portal-link.is-active {
+    background-color: color-mix(in srgb, var(--cc-accent) 16%, transparent);
+    color: var(--cc-accent-ink);
+    border: 1px solid color-mix(in srgb, var(--cc-accent) 32%, transparent);
+    @apply font-semibold;
+  }
+}

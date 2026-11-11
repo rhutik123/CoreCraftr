@@ -44,8 +44,9 @@ CoreCraftr/
 │   ├── context_processors.py    # Hides portal nav flags from unauthorized users
 │   ├── forms.py, views.py, urls.py
 │   └── services/                # audit_service, image_service, inventory_service, product_service, csv_service, user_service, ai_spec_service
-├── templates/                   # Shared base template (base.html) and custom error pages (403.html, 404.html, 500.html)
-├── static/                      # CSS (main.css, management.css), JS (cart.js, management.js), SVGs, assets
+├── templates/                   # Shared base layout (base.html), partials (components/), error pages (403.html, 404.html, 500.html)
+├── frontend_src/                # Tailwind CSS v4 input & Dark/Light design tokens (tailwind.css)
+├── static/                      # Compiled Tailwind CSS (app.min.css), JS (theme.js, cart.js, management.js), vendor/lucide.min.js, SVGs
 └── media/                       # Uploaded product & gallery images (runtime/user media)
 ```
 
@@ -103,7 +104,7 @@ Both PC Builder recommendations (`BuildRecommendationOrchestrator`) and Cart con
 ## 6. Security & Session Integrity Controls
 
 - **Zero Hardcoded Secrets**: All keys, DB credentials, debug flags, allowed hosts, SMTP settings, and AI keys are loaded from environment variables via `.env`.
-- **Database Tracking Removed Going Forward**: `db.sqlite3` and `*.sqlite3` are ignored by `.gitignore` and removed from Git tracking on `feature/corecraftr-branding` so local test/demo data is not committed.
+- **Database Tracking Removed Going Forward**: `db.sqlite3` and `*.sqlite3` are excluded by `.gitignore` and untracked from active branches so local test/demo databases are never committed.
 - **Pre-Login Session Capture**: Captures guest `session_key` before `login()` session rotation so guest carts and guest PC builds merge cleanly.
 - **Server-Side Checkout Authority**: All prices, shipping calculation, atomic stock locks (`select_for_update`), fresh compatibility checks, and totals execute strictly server-side.
 - **Hardened HTTP & Cookie Defaults**: `SESSION_COOKIE_HTTPONLY = True`, `SameSite = 'Lax'`, `X_FRAME_OPTIONS = 'DENY'`, `SECURE_CONTENT_TYPE_NOSNIFF = True`, and strict HTTPS/HSTS flags when `DJANGO_DEBUG=False`.

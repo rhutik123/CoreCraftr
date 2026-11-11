@@ -4,44 +4,56 @@
 {% block title %}Order History | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 fw-bold mb-0">Your Order History</h1>
-  <a href="{% url 'profile' %}" class="btn btn-outline-secondary btn-sm">Back to Profile</a>
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Your Order History</h1>
+    <p class="text-xs sm:text-sm text-muted mt-1">Review completed demo orders, hardware compatibility logs, and receipts.</p>
+  </div>
+  <a href="{% url 'profile' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Back to Profile</a>
 </div>
 
 {% if orders %}
-<div class="d-flex flex-column gap-3">
-  {% for order in orders %}
-  <div class="hh-card p-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-2 mb-3 gap-2">
-      <div>
-        <span class="fw-bold text-primary">{{ order.order_number }}</span>
-        <span class="text-muted small ms-2">{{ order.date_ordered|date:"M d, Y H:i" }}</span>
+  <div class="space-y-4">
+    {% for order in orders %}
+      <div class="cc-card p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span class="text-base font-extrabold text-accent-ink cc-mono">{{ order.order_number }}</span>
+            <span class="text-xs text-muted cc-mono">{{ order.date_ordered|date:"M d, Y H:i" }}</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="cc-badge cc-badge-compatible">{{ order.get_status_display }}</span>
+            <span class="cc-badge cc-badge-neutral">{{ order.get_payment_method_display }}</span>
+            {% if order.incompatibility_acknowledged %}
+              <span class="cc-badge cc-badge-warning">Incompatibility Acknowledged</span>
+            {% endif %}
+            <span class="text-base font-extrabold text-ink cc-mono">{{ order.total_amount|inr }}</span>
+          </div>
+        </div>
+
+        <ul class="space-y-1 text-xs sm:text-sm text-muted">
+          {% for item in order.orderitem_set.all %}
+            <li class="flex justify-between gap-2">
+              <span>{{ item.quantity }}x {{ item.product_name_snapshot|default:item.product.name }}</span>
+              <span class="cc-mono text-ink font-medium">{{ item.get_total|inr }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+
+        <div class="pt-1">
+          <a href="{% url 'order_confirmation' order.order_number %}" class="cc-btn cc-btn-secondary cc-btn-sm">View Receipt</a>
+        </div>
       </div>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <span class="badge text-bg-success">{{ order.get_status_display }}</span>
-        <span class="badge text-bg-light border text-dark">{{ order.get_payment_method_display }}</span>
-        {% if order.incompatibility_acknowledged %}
-        <span class="badge text-bg-warning">Incompatibility Acknowledged</span>
-        {% endif %}
-        <span class="fw-bold fs-6">{{ order.total_amount|inr }}</span>
-      </div>
-    </div>
-    <ul class="list-unstyled small mb-2">
-      {% for item in order.orderitem_set.all %}
-      <li>{{ item.quantity }}x {{ item.product_name_snapshot|default:item.product.name }} — {{ item.get_total|inr }}</li>
-      {% endfor %}
-    </ul>
-    <a href="{% url 'order_confirmation' order.order_number %}" class="btn btn-sm btn-outline-primary">View Receipt</a>
+    {% endfor %}
   </div>
-  {% endfor %}
-</div>
 {% else %}
-<div class="hh-card p-5 text-center">
-  <i class="bi bi-box-seam fs-1 text-muted mb-2 d-block"></i>
-  <h5>No completed orders yet</h5>
-  <p class="text-muted small">Once you place a demo order, it will appear here.</p>
-  <a href="{% url 'store' %}" class="btn btn-primary btn-sm">Browse Hardware</a>
-</div>
+  <div class="cc-card p-12 text-center max-w-xl mx-auto">
+    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-elevated border border-border text-muted">
+      <i data-lucide="package" class="w-7 h-7"></i>
+    </div>
+    <h2 class="text-xl font-bold text-ink mb-2">No completed orders yet</h2>
+    <p class="text-sm text-muted mb-6">Once you place a demo order, your receipt and build summary will appear here.</p>
+    <a href="{% url 'store' %}" class="cc-btn cc-btn-primary cc-btn-sm">Browse Hardware</a>
+  </div>
 {% endif %}
 {% endblock %}

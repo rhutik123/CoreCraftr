@@ -3,27 +3,33 @@
 {% block title %}Sign In | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center py-4">
-  <div class="col-md-5 col-lg-4">
-    <div class="hh-card p-4">
-      <h3 class="fw-bold text-center mb-3">Sign In</h3>
-      <form method="post" action="{% url 'login' %}">
-        {% csrf_token %}
-        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Username</label>
-          <input type="text" name="username" class="form-control" required autofocus placeholder="Enter username">
-        </div>
-        <div class="mb-3">
-          <label class="form-label small fw-semibold">Password</label>
-          <input type="password" name="password" class="form-control" required placeholder="Enter password">
-        </div>
-        <button type="submit" class="btn btn-primary w-100 mb-3">Sign In</button>
-      </form>
-      <div class="text-center small">
-        <div class="mb-1">New to CoreCraftr? <a href="{% url 'register' %}">Create an account</a></div>
-        <div><a href="{% url 'reset_password' %}" class="text-muted">Forgot your password?</a></div>
+<div class="mx-auto max-w-md py-6 sm:py-10">
+  <div class="cc-card p-6 sm:p-8 space-y-6">
+    <div class="text-center space-y-1.5">
+      <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/15 border border-accent/35 text-accent-ink">
+        <i data-lucide="lock" class="w-5 h-5"></i>
       </div>
+      <h1 class="text-2xl font-extrabold text-ink">Sign In</h1>
+      <p class="text-xs text-muted">Access your saved builds, orders, and wishlist on CoreCraftr.</p>
+    </div>
+
+    <form method="post" action="{% url 'login' %}" class="space-y-4">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <div>
+        <label class="cc-label" for="id_login_username">Username</label>
+        <input id="id_login_username" type="text" name="username" class="cc-input" required autofocus placeholder="Enter username">
+      </div>
+      <div>
+        <label class="cc-label" for="id_login_password">Password</label>
+        <input id="id_login_password" type="password" name="password" class="cc-input" required placeholder="Enter password">
+      </div>
+      <button type="submit" class="cc-btn cc-btn-primary cc-btn-lg w-full">Sign In</button>
+    </form>
+
+    <div class="border-t border-border pt-4 text-center text-xs space-y-1.5 text-muted">
+      <div>New to CoreCraftr? <a href="{% url 'register' %}" class="font-semibold text-accent-ink hover:underline">Create an account</a></div>
+      <div><a href="{% url 'reset_password' %}" class="hover:text-ink transition-colors">Forgot your password?</a></div>
     </div>
   </div>
 </div>

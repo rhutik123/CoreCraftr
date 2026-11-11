@@ -1,151 +1,320 @@
-{% load static %}
+{% load static store_extras %}
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>{% block title %}CoreCraftr | Build Smarter. Build Better.{% endblock %}</title>
+  <title>{% block title %}CoreCraftr — Build Smarter. Build Better.{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'images/corecraftr-mark.svg' %}">
-  <link rel="shortcut icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous">
-  <link rel="stylesheet" href="{% static 'css/main.css' %}">
-  {% block extra_css %}{% endblock %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('corecraftr-theme') || 'dark';
+        var effective = pref === 'system'
+          ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+          : (pref === 'light' ? 'light' : 'dark');
+        var root = document.documentElement;
+        root.classList.remove('dark', 'light');
+        root.classList.add(effective);
+        root.dataset.themePreference = pref;
+        root.dataset.theme = effective;
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="{% static 'css/app.min.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-dark hh-navbar sticky-top shadow-sm">
-    <div class="container">
-      <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="{% url 'home' %}">
-        <img src="{% static 'images/corecraftr-mark.svg' %}" alt="CoreCraftr" width="28" height="28" class="rounded">
-        <span>CoreCraftr</span>
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+<body class="min-h-screen flex flex-col bg-canvas text-ink antialiased">
+  <!-- Subtle precision announcement strip -->
+  <div class="border-b border-border bg-surface/80 text-xs text-muted">
+    <div class="cc-container flex flex-wrap items-center justify-between gap-2 py-2">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 text-ink font-medium">
+          <span class="h-1.5 w-1.5 rounded-full bg-accent"></span>
+          CoreCraftr
+        </span>
+        <span class="hidden sm:inline text-border">|</span>
+        <span class="hidden sm:inline">Build Smarter. Build Better.</span>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] font-medium">
+        <span class="inline-flex items-center gap-1 text-tech-ink">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>Deterministic Compatibility Engine</span>
+        </span>
+        <span class="hidden md:inline-flex items-center gap-1">
+          <i data-lucide="cpu" class="w-3.5 h-3.5 text-accent-ink"></i>
+          <span>Beginner &amp; Expert PC Builder</span>
+        </span>
+      </div>
+    </div>
+  </div>
 
-      <div class="collapse navbar-collapse" id="mainNav">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'home' %}">Home</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'store' %}">Shop All Hardware</a>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Categories
-            </a>
-            <ul class="dropdown-menu">
-              {% for cat in nav_categories %}
-              <li><a class="dropdown-item" href="{% url 'category_detail' cat.slug %}"><i class="bi {{ cat.icon_class }} me-2"></i>{{ cat.name }}</a></li>
-              {% endfor %}
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item fw-semibold" href="{% url 'store' %}">Browse All Categories</a></li>
-            </ul>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-info fw-semibold" href="{% url 'pc_builder' %}">
-              <i class="bi bi-tools me-1"></i>PC Builder
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'compare' %}">
-              Compare
-              {% if compare_count %}<span class="badge text-bg-secondary">{{ compare_count }}</span>{% endif %}
-            </a>
-          </li>
-        </ul>
+  <!-- Primary Sticky Navbar -->
+  <header class="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-md">
+    <div class="cc-container">
+      <div class="flex h-16 items-center justify-between gap-3">
+        <!-- Mobile Menu Button & Brand -->
+        <div class="flex items-center gap-2.5 shrink-0">
+          <button type="button" data-drawer-open="mobile-nav-drawer" aria-label="Open navigation menu" class="inline-flex lg:hidden items-center justify-center rounded-xl border border-border bg-elevated p-2 text-ink hover:border-accent cursor-pointer">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
 
-        <form class="d-flex me-lg-3 my-2 my-lg-0" action="{% url 'store' %}" method="get" role="search">
-          <div class="input-group input-group-sm">
-            <input class="form-control bg-dark text-light border-secondary" type="search" name="q" value="{{ request.GET.q }}" placeholder="Search CPUs, GPUs, DDR5..." aria-label="Search">
-            <button class="btn btn-outline-info" type="submit"><i class="bi bi-search"></i></button>
+          <a href="{% url 'home' %}" class="flex items-center gap-2.5 group">
+            <img src="{% static 'images/corecraftr-mark.svg' %}" alt="CoreCraftr" class="h-9 w-9 shrink-0 rounded-xl transition-transform duration-200 group-hover:scale-105">
+            <div class="leading-none">
+              <span class="block text-base sm:text-lg font-extrabold tracking-tight text-ink">Core<span class="text-accent">Craftr</span></span>
+              <span class="hidden sm:block text-[10px] font-medium tracking-wide text-muted mt-0.5">Build Smarter. Build Better.</span>
+            </div>
+          </a>
+        </div>
+
+        <!-- Desktop Primary Navigation -->
+        <nav class="hidden lg:flex items-center gap-1 text-sm font-medium" aria-label="Primary navigation">
+          <a href="{% url 'home' %}" class="px-3 py-2 rounded-xl text-muted hover:text-ink hover:bg-elevated transition-colors">Home</a>
+          <a href="{% url 'store' %}" class="px-3 py-2 rounded-xl text-muted hover:text-ink hover:bg-elevated transition-colors">Catalog</a>
+
+          <!-- Categories Mega Dropdown -->
+          <div class="relative">
+            <button type="button" data-dropdown-toggle="nav-categories-menu" aria-expanded="false" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-muted hover:text-ink hover:bg-elevated transition-colors cursor-pointer">
+              <span>Components</span>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+            </button>
+            <div id="nav-categories-menu" data-dropdown-panel class="hidden absolute left-0 top-full mt-2 w-[420px] rounded-2xl border border-border bg-surface p-3 shadow-2xl z-50">
+              <div class="mb-2 flex items-center justify-between px-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Browse Categories</span>
+                <a href="{% url 'store' %}" class="text-xs font-semibold text-tech-ink hover:underline">All Hardware &rarr;</a>
+              </div>
+              <div class="grid grid-cols-2 gap-1">
+                {% for cat in nav_categories %}
+                  <a href="{% url 'store' %}?category={{ cat.slug }}" class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-ink hover:bg-elevated transition-colors">
+                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-elevated text-accent-ink border border-border">
+                      <i data-lucide="{{ cat.icon_class|lucide_icon:'cpu' }}" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <span class="truncate">{{ cat.name }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <a href="{% url 'pc_builder' %}" class="inline-flex items-center gap-1.5 rounded-xl bg-tech/15 border border-tech/35 px-3 py-1.5 text-xs font-bold text-tech-ink hover:bg-tech hover:text-white transition-all">
+            <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+            <span>PC Builder</span>
+          </a>
+
+          <a href="{% url 'compare' %}" class="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-muted hover:text-ink hover:bg-elevated transition-colors">
+            <i data-lucide="columns-3" class="w-3.5 h-3.5"></i>
+            <span>Compare</span>
+            {% if compare_count %}
+              <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-tech px-1.5 text-[10px] font-bold text-white cc-mono">{{ compare_count }}</span>
+            {% endif %}
+          </a>
+        </nav>
+
+        <!-- Search Form (Desktop / Tablet) -->
+        <form class="hidden md:flex flex-1 max-w-xs lg:max-w-sm items-center" action="{% url 'store' %}" method="get" role="search">
+          <div class="relative w-full">
+            <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+            <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search CPU, GPU, motherboard..." aria-label="Search hardware catalog" class="w-full rounded-xl border border-border bg-elevated pl-9 pr-3 py-1.5 text-xs sm:text-sm text-ink placeholder:text-muted focus:outline-none focus:border-tech">
           </div>
         </form>
 
-        <div class="d-flex align-items-center gap-2">
-          {% if request.user.is_authenticated %}
-          <div class="dropdown">
-            <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-person-circle me-1"></i>{{ request.user.username }}
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="bi bi-person me-2"></i>Profile &amp; Preferences</a></li>
-              <li><a class="dropdown-item" href="{% url 'builder_saved_list' %}"><i class="bi bi-pc-display me-2"></i>Saved PC Builds</a></li>
-              <li><a class="dropdown-item" href="{% url 'order_history' %}"><i class="bi bi-box-seam me-2"></i>Order History</a></li>
-              <li><a class="dropdown-item" href="{% url 'wishlist' %}"><i class="bi bi-heart me-2"></i>Wishlist ({{ wishlist_count }})</a></li>
-              {% if can_access_portal %}
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item fw-semibold text-success" href="{% url 'management:dashboard' %}"><i class="bi bi-boxes me-2"></i>Management Portal</a></li>
-              {% endif %}
-              {% if request.user.is_staff %}
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-primary" href="/admin/"><i class="bi bi-shield-lock me-2"></i>Django Admin</a></li>
-              {% endif %}
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <form method="post" action="{% url 'logout' %}" class="px-3 py-1">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger w-100">Logout</button>
-                </form>
-              </li>
-            </ul>
+        <!-- Right Action Controls -->
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="hidden sm:block">
+            {% include 'components/theme_switcher.html' with icon_only=True %}
           </div>
+
+          <!-- Account Dropdown -->
+          {% if request.user.is_authenticated %}
+            <div class="relative">
+              <button type="button" data-dropdown-toggle="nav-account-menu" aria-expanded="false" class="inline-flex items-center gap-1.5 rounded-xl border border-border bg-elevated px-3 py-2 text-xs sm:text-sm font-semibold text-ink hover:border-accent transition-colors cursor-pointer">
+                <i data-lucide="user" class="w-4 h-4 text-accent-ink"></i>
+                <span class="hidden sm:inline max-w-[110px] truncate">{{ request.user.username }}</span>
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-muted"></i>
+              </button>
+              <div id="nav-account-menu" data-dropdown-panel class="hidden absolute right-0 top-full mt-2 w-60 rounded-2xl border border-border bg-surface p-2 shadow-2xl z-50 text-sm">
+                <div class="px-3 py-2 border-b border-border mb-1.5">
+                  <div class="text-xs font-bold text-ink truncate">{{ request.user.username }}</div>
+                  <div class="text-[11px] text-muted truncate">{{ request.user.email|default:'CoreCraftr Member' }}</div>
+                </div>
+                <a href="{% url 'profile' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-ink hover:bg-elevated transition-colors">
+                  <i data-lucide="user" class="w-4 h-4 text-muted"></i><span>Account &amp; Addresses</span>
+                </a>
+                <a href="{% url 'builder_saved_list' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-ink hover:bg-elevated transition-colors">
+                  <i data-lucide="pc-case" class="w-4 h-4 text-muted"></i><span>Saved PC Builds</span>
+                </a>
+                <a href="{% url 'order_history' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-ink hover:bg-elevated transition-colors">
+                  <i data-lucide="package" class="w-4 h-4 text-muted"></i><span>Order History</span>
+                </a>
+                <a href="{% url 'wishlist' %}" class="flex items-center justify-between rounded-xl px-3 py-2 text-ink hover:bg-elevated transition-colors">
+                  <span class="flex items-center gap-2.5"><i data-lucide="heart" class="w-4 h-4 text-muted"></i><span>Wishlist</span></span>
+                  <span class="text-xs font-bold cc-mono text-muted">{{ wishlist_count }}</span>
+                </a>
+                {% if can_access_portal %}
+                  <div class="my-1.5 border-t border-border"></div>
+                  <a href="{% url 'management:dashboard' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2 font-semibold text-accent-ink hover:bg-elevated transition-colors">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Management Portal</span>
+                  </a>
+                {% endif %}
+                {% if request.user.is_staff %}
+                  <a href="/admin/" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-tech-ink hover:bg-elevated transition-colors">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i><span>Django Admin</span>
+                  </a>
+                {% endif %}
+                <div class="my-1.5 border-t border-border"></div>
+                <form method="post" action="{% url 'logout' %}">
+                  {% csrf_token %}
+                  <button type="submit" class="w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left font-medium text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer">
+                    <i data-lucide="log-out" class="w-4 h-4"></i><span>Sign Out</span>
+                  </button>
+                </form>
+              </div>
+            </div>
           {% else %}
-          <a href="{% url 'login' %}" class="btn btn-outline-light btn-sm">Login</a>
-          <a href="{% url 'register' %}" class="btn btn-info btn-sm fw-semibold">Sign Up</a>
+            <a href="{% url 'login' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Sign In</a>
+            <a href="{% url 'register' %}" class="hidden sm:inline-flex cc-btn cc-btn-primary cc-btn-sm">Register</a>
           {% endif %}
 
-          <a href="{% url 'cart' %}" class="btn btn-warning btn-sm position-relative fw-semibold">
-            <i class="bi bi-cart3 me-1"></i>Cart
-            <span id="cart-total" class="badge rounded-pill text-bg-dark ms-1">{{ cartItems|default:0 }}</span>
+          <!-- Cart Trigger -->
+          <a href="{% url 'cart' %}" class="inline-flex items-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs sm:text-sm font-bold text-on-accent hover:bg-accent-hover transition-all shadow-sm">
+            <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Cart</span>
+            <span id="cart-total" class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black/20 px-1.5 text-[11px] font-bold cc-mono">{{ cartItems|default:0 }}</span>
           </a>
         </div>
       </div>
     </div>
-  </nav>
+  </header>
 
-  <main class="py-4">
-    <div class="container">
-      {% if messages %}
-      <div class="mb-3">
-        {% for message in messages %}
-        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endfor %}
+  <!-- Mobile Navigation Drawer -->
+  <div id="mobile-nav-drawer" data-drawer aria-hidden="true" class="hidden fixed inset-0 z-50">
+    <div data-drawer-backdrop class="fixed inset-0 bg-black/70 backdrop-blur-xs"></div>
+    <div class="relative z-10 flex h-full w-80 max-w-[85vw] flex-col border-r border-border bg-surface p-5 overflow-y-auto">
+      <div class="flex items-center justify-between pb-4 border-b border-border">
+        <a href="{% url 'home' %}" class="flex items-center gap-2.5">
+          <img src="{% static 'images/corecraftr-mark.svg' %}" alt="CoreCraftr" class="h-8 w-8 rounded-lg">
+          <span class="font-extrabold text-ink">Core<span class="text-accent">Craftr</span></span>
+        </a>
+        <button type="button" data-drawer-close="mobile-nav-drawer" aria-label="Close navigation menu" class="rounded-xl p-1.5 text-muted hover:text-ink hover:bg-elevated cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
-      {% endif %}
 
+      <form action="{% url 'store' %}" method="get" class="mt-4">
+        <div class="relative">
+          <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+          <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search components..." class="cc-input pl-9">
+        </div>
+      </form>
+
+      <div class="mt-5 space-y-1 text-sm font-medium">
+        <a href="{% url 'home' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-ink hover:bg-elevated">
+          <i data-lucide="store" class="w-4 h-4 text-muted"></i><span>Home</span>
+        </a>
+        <a href="{% url 'store' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-ink hover:bg-elevated">
+          <i data-lucide="layers" class="w-4 h-4 text-muted"></i><span>All Hardware</span>
+        </a>
+        <a href="{% url 'pc_builder' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-semibold text-tech-ink bg-tech/10 border border-tech/30">
+          <i data-lucide="wrench" class="w-4 h-4"></i><span>Intelligent PC Builder</span>
+        </a>
+        <a href="{% url 'compare' %}" class="flex items-center justify-between rounded-xl px-3 py-2.5 text-ink hover:bg-elevated">
+          <span class="flex items-center gap-2.5"><i data-lucide="columns-3" class="w-4 h-4 text-muted"></i><span>Compare Specs</span></span>
+          {% if compare_count %}<span class="cc-badge cc-badge-tech cc-mono">{{ compare_count }}</span>{% endif %}
+        </a>
+        {% if can_access_portal %}
+          <a href="{% url 'management:dashboard' %}" class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 font-semibold text-accent-ink hover:bg-elevated">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Management Portal</span>
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="mt-6">
+        <div class="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">Categories</div>
+        <div class="grid grid-cols-1 gap-1">
+          {% for cat in nav_categories %}
+            <a href="{% url 'store' %}?category={{ cat.slug }}" class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-muted hover:text-ink hover:bg-elevated">
+              <i data-lucide="{{ cat.icon_class|lucide_icon:'cpu' }}" class="w-3.5 h-3.5 text-accent-ink"></i>
+              <span>{{ cat.name }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mt-auto pt-6 border-t border-border flex items-center justify-between">
+        <span class="text-xs font-semibold text-muted">Theme</span>
+        {% include 'components/theme_switcher.html' %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="flex-1 py-6 sm:py-8">
+    <div class="cc-container">
+      {% include 'components/messages.html' %}
       {% block content %}{% endblock %}
     </div>
   </main>
 
-  <footer class="hh-footer py-4 mt-5">
-    <div class="container">
-      <div class="row gy-3 align-items-center">
-        <div class="col-md-6">
-          <div class="fw-bold text-white d-flex align-items-center gap-2">
-            <img src="{% static 'images/corecraftr-mark.svg' %}" alt="CoreCraftr" width="22" height="22" class="rounded">
-            <span>CoreCraftr</span>
-            <span class="badge text-bg-info bg-opacity-75 fw-semibold">Build Smarter. Build Better.</span>
+  <!-- Modern Footer -->
+  <footer class="mt-12 border-t border-border bg-surface">
+    <div class="cc-container py-10">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div>
+          <div class="flex items-center gap-2.5 mb-3">
+            <img src="{% static 'images/corecraftr-mark.svg' %}" alt="CoreCraftr" class="h-8 w-8 rounded-lg">
+            <span class="text-base font-extrabold text-ink">Core<span class="text-accent">Craftr</span></span>
           </div>
-          <small class="text-secondary d-block mt-1">
-            CoreCraftr is a computer hardware marketplace with an intelligent PC Builder that helps beginners and experienced enthusiasts select, compare, and purchase compatible PC components. Demo checkout only — no real payments processed.
-          </small>
+          <p class="text-xs font-semibold text-accent-ink mb-2">Build Smarter. Build Better.</p>
+          <p class="text-xs leading-relaxed text-muted">
+            Precision PC components, deterministic hardware compatibility checks, and intelligent Beginner &amp; Expert system building.
+          </p>
         </div>
-        <div class="col-md-6 text-md-end">
-          <a href="{% url 'pc_builder' %}?mode=beginner" class="text-decoration-none text-info me-3 small">Help Me Build My First PC</a>
-          <a href="{% url 'pc_builder' %}?mode=expert" class="text-decoration-none text-light me-3 small">Expert PC Builder</a>
-          <a href="{% url 'store' %}" class="text-decoration-none text-secondary small">Hardware Catalogue</a>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-ink mb-3">Shop Hardware</h3>
+          <ul class="space-y-2 text-xs text-muted">
+            <li><a href="{% url 'store' %}" class="hover:text-accent-ink transition-colors">Full Hardware Catalog</a></li>
+            <li><a href="{% url 'store' %}?category=cpu" class="hover:text-accent-ink transition-colors">Processors (CPU)</a></li>
+            <li><a href="{% url 'store' %}?category=motherboard" class="hover:text-accent-ink transition-colors">Motherboards</a></li>
+            <li><a href="{% url 'store' %}?category=gpu" class="hover:text-accent-ink transition-colors">Graphics Cards (GPU)</a></li>
+            <li><a href="{% url 'compare' %}" class="hover:text-accent-ink transition-colors">Side-by-Side Comparison</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-ink mb-3">PC Builder</h3>
+          <ul class="space-y-2 text-xs text-muted">
+            <li><a href="{% url 'pc_builder' %}" class="hover:text-accent-ink transition-colors">Builder Workspace</a></li>
+            <li><a href="{% url 'builder_saved_list' %}" class="hover:text-accent-ink transition-colors">Saved Builds</a></li>
+            <li><a href="{% url 'cart' %}" class="hover:text-accent-ink transition-colors">Cart Compatibility Check</a></li>
+            <li><a href="{% url 'order_history' %}" class="hover:text-accent-ink transition-colors">Orders &amp; Tracking</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-ink mb-3">Appearance</h3>
+          <p class="text-xs text-muted mb-3">Switch seamlessly between Dark, Light, or System preference.</p>
+          {% include 'components/theme_switcher.html' %}
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
+        <div>&copy; {% now "Y" %} CoreCraftr &mdash; Build Smarter. Build Better.</div>
+        <div class="flex items-center gap-4">
+          <span class="inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-tech-ink"></i>Verified Specs</span>
+          <span class="inline-flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5 text-accent-ink"></i>INR Transparent Pricing</span>
         </div>
       </div>
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="{% static 'vendor/lucide.min.js' %}"></script>
+  <script src="{% static 'js/theme.js' %}"></script>
   <script src="{% static 'js/cart.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>

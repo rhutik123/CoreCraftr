@@ -3,78 +3,94 @@
 {% block title %}My Profile | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-  <div class="col-lg-4">
-    <div class="hh-card p-4 mb-3">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
-          <i class="bi bi-person-fill fs-4"></i>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+  <!-- Left Profile Summary Card -->
+  <div class="lg:col-span-4 space-y-4">
+    <div class="cc-card p-5 space-y-4">
+      <div class="flex items-center gap-3.5 pb-4 border-b border-border">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-on-accent font-extrabold text-lg">
+          <i data-lucide="user" class="w-6 h-6"></i>
         </div>
-        <div>
-          <h5 class="fw-bold mb-0">{{ request.user.username }}</h5>
-          <small class="text-muted">{{ customer.email|default:request.user.email }}</small>
+        <div class="min-w-0">
+          <h1 class="text-lg font-extrabold text-ink truncate">{{ request.user.username }}</h1>
+          <p class="text-xs text-muted truncate">{{ customer.email|default:request.user.email|default:"CoreCraftr Member" }}</p>
         </div>
       </div>
-      <div class="list-group list-group-flush small">
-        <a href="{% url 'builder_saved_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-pc-display me-2"></i>Saved PC Builds</span>
-          <span class="badge text-bg-primary">{{ saved_builds_count }}</span>
+
+      <nav class="space-y-1.5 text-sm" aria-label="Account links">
+        <a href="{% url 'builder_saved_list' %}" class="flex items-center justify-between rounded-xl border border-border bg-elevated/60 px-3.5 py-2.5 font-medium text-ink hover:border-accent transition-colors">
+          <span class="flex items-center gap-2.5"><i data-lucide="pc-case" class="w-4 h-4 text-accent-ink"></i><span>Saved PC Builds</span></span>
+          <span class="cc-badge cc-badge-accent cc-mono">{{ saved_builds_count }}</span>
         </a>
-        <a href="{% url 'order_history' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-box-seam me-2"></i>Orders</span>
-          <span class="badge text-bg-secondary">{{ orders_count }}</span>
+        <a href="{% url 'order_history' %}" class="flex items-center justify-between rounded-xl border border-border bg-elevated/60 px-3.5 py-2.5 font-medium text-ink hover:border-tech transition-colors">
+          <span class="flex items-center gap-2.5"><i data-lucide="package" class="w-4 h-4 text-tech-ink"></i><span>Orders</span></span>
+          <span class="cc-badge cc-badge-tech cc-mono">{{ orders_count }}</span>
         </a>
-        <a href="{% url 'wishlist' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-heart me-2"></i>Wishlist</span>
-          <span class="badge text-bg-danger">{{ wishlist_count }}</span>
+        <a href="{% url 'wishlist' %}" class="flex items-center justify-between rounded-xl border border-border bg-elevated/60 px-3.5 py-2.5 font-medium text-ink hover:border-accent transition-colors">
+          <span class="flex items-center gap-2.5"><i data-lucide="heart" class="w-4 h-4 text-red-400"></i><span>Wishlist</span></span>
+          <span class="cc-badge cc-badge-neutral cc-mono">{{ wishlist_count }}</span>
         </a>
-      </div>
+      </nav>
     </div>
   </div>
 
-  <div class="col-lg-8">
-    <form method="post" class="hh-card p-4">
+  <!-- Right Account & Delivery Form -->
+  <div class="lg:col-span-8">
+    <form method="post" class="cc-card p-5 sm:p-7 space-y-5">
       {% csrf_token %}
-      <h4 class="fw-bold mb-3">Account &amp; Default Delivery Preferences</h4>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Full Name</label>
+      <h2 class="text-xl font-extrabold text-ink border-b border-border pb-3">Account &amp; Default Delivery Preferences</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="cc-label">Full Name</label>
           {{ form.name }}
+          {{ form.name.errors }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Email</label>
+        <div>
+          <label class="cc-label">Email</label>
           {{ form.email }}
+          {{ form.email.errors }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Phone</label>
+        <div>
+          <label class="cc-label">Phone</label>
           {{ form.phone }}
+          {{ form.phone.errors }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Preferred PC Builder Mode</label>
+        <div>
+          <label class="cc-label">Preferred PC Builder Mode</label>
           {{ form.preferred_builder_mode }}
+          {{ form.preferred_builder_mode.errors }}
         </div>
-        <div class="col-12">
-          <label class="form-label small fw-semibold">Default Street Address</label>
+        <div class="sm:col-span-2">
+          <label class="cc-label">Default Street Address</label>
           {{ form.default_address }}
+          {{ form.default_address.errors }}
         </div>
-        <div class="col-md-4">
-          <label class="form-label small fw-semibold">City</label>
+        <div>
+          <label class="cc-label">City</label>
           {{ form.default_city }}
+          {{ form.default_city.errors }}
         </div>
-        <div class="col-md-4">
-          <label class="form-label small fw-semibold">State</label>
+        <div>
+          <label class="cc-label">State</label>
           {{ form.default_state }}
+          {{ form.default_state.errors }}
         </div>
-        <div class="col-md-4">
-          <label class="form-label small fw-semibold">PIN / ZIP</label>
+        <div>
+          <label class="cc-label">PIN / ZIP</label>
           {{ form.default_zipcode }}
+          {{ form.default_zipcode.errors }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label small fw-semibold">Country</label>
+        <div>
+          <label class="cc-label">Country</label>
           {{ form.default_country }}
+          {{ form.default_country.errors }}
         </div>
       </div>
-      <button type="submit" class="btn btn-primary mt-4">Save Preferences</button>
+
+      <div class="pt-2">
+        <button type="submit" class="cc-btn cc-btn-primary">Save Preferences</button>
+      </div>
     </form>
   </div>
 </div>

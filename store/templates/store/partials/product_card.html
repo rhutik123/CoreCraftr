@@ -1,49 +1,66 @@
 {% load store_extras %}
-<div class="hh-card h-100 d-flex flex-column">
-  <a href="{% url 'detail' product.id %}" class="hh-product-img-wrap text-decoration-none position-relative">
-    <img src="{{ product.imageURL }}" alt="{{ product.name }}">
-    {% if product.discount_percent > 0 %}
-    <span class="badge text-bg-danger position-absolute top-0 start-0 m-2">-{{ product.discount_percent }}%</span>
-    {% endif %}
-    {% if not product.in_stock %}
-    <span class="badge text-bg-secondary position-absolute top-0 end-0 m-2">Out of Stock</span>
-    {% elif product.is_trending %}
-    <span class="badge text-bg-info position-absolute top-0 end-0 m-2">Trending</span>
-    {% endif %}
+<article class="cc-card cc-card-hover flex flex-col overflow-hidden h-full group">
+  <a href="{% url 'detail' product.id %}" class="relative cc-product-frame flex items-center justify-center aspect-[4/3] overflow-hidden p-4">
+    <img src="{{ product.imageURL }}" alt="{{ product.name }}" loading="lazy" class="max-h-44 w-full object-contain transition-transform duration-300 group-hover:scale-105">
+    <div class="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
+      {% if product.discount_percent > 0 %}
+        <span class="cc-badge bg-red-600 text-white border-red-500 cc-mono">-{{ product.discount_percent }}%</span>
+      {% endif %}
+    </div>
+    <div class="absolute top-2.5 right-2.5">
+      {% if not product.in_stock %}
+        <span class="cc-badge cc-badge-neutral">Out of Stock</span>
+      {% elif product.is_trending %}
+        <span class="cc-badge cc-badge-tech">Trending</span>
+      {% endif %}
+    </div>
   </a>
-  <div class="p-3 d-flex flex-column flex-grow-1">
-    <div class="d-flex justify-content-between align-items-center mb-1">
-      <small class="text-muted text-uppercase fw-semibold">{{ product.brand.name|default:"Hardware" }}</small>
+
+  <div class="flex flex-1 flex-col p-4">
+    <div class="flex items-center justify-between gap-2 mb-1.5">
+      <span class="text-[11px] font-bold uppercase tracking-wider text-accent-ink truncate">{{ product.brand.name|default:"Hardware" }}</span>
       {% if product.category %}
-      <span class="badge bg-light text-dark border">{{ product.category.name }}</span>
-      {% endif %}
-    </div>
-    <h6 class="fw-bold mb-1">
-      <a href="{% url 'detail' product.id %}" class="text-decoration-none text-dark">{{ product.name }}</a>
-    </h6>
-    <p class="small text-muted mb-2 flex-grow-1">{{ product.short_description|default:product.description|truncatechars:85 }}</p>
-
-    <div class="d-flex align-items-baseline gap-2 mb-2">
-      <span class="fs-5 fw-bold text-dark">{{ product.price|inr }}</span>
-      {% if product.original_price and product.original_price > product.price %}
-      <small class="text-muted text-decoration-line-through">{{ product.original_price|inr_whole }}</small>
+        <span class="cc-badge cc-badge-neutral text-[10px] py-0.5 px-2 shrink-0">{{ product.category.name }}</span>
       {% endif %}
     </div>
 
-    <div class="d-flex gap-1 mt-auto">
-      <button data-product="{{ product.id }}" data-action="add" class="btn btn-primary btn-sm flex-grow-1 update-cart" {% if not product.in_stock %}disabled{% endif %}>
-        <i class="bi bi-cart-plus me-1"></i>Add
+    <h3 class="text-sm font-bold text-ink leading-snug mb-1.5 line-clamp-2">
+      <a href="{% url 'detail' product.id %}" class="hover:text-accent-ink transition-colors">{{ product.name }}</a>
+    </h3>
+
+    <p class="text-xs text-muted leading-relaxed mb-4 flex-1 line-clamp-2">
+      {{ product.short_description|default:product.description|truncatechars:90 }}
+    </p>
+
+    <div class="flex items-baseline justify-between gap-2 mb-3 pt-2 border-t border-border/60">
+      <div class="flex items-baseline gap-2">
+        <span class="text-lg font-extrabold text-ink cc-mono">{{ product.price|inr }}</span>
+        {% if product.original_price and product.original_price > product.price %}
+          <span class="text-xs text-muted line-through cc-mono">{{ product.original_price|inr_whole }}</span>
+        {% endif %}
+      </div>
+      {% if product.spec_verified %}
+        <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-green-400" title="Verified Specifications">
+          <i data-lucide="badge-check" class="w-3.5 h-3.5"></i><span>Verified</span>
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-1.5 mt-auto">
+      <button type="button" data-product="{{ product.id }}" data-action="add" class="cc-btn cc-btn-primary cc-btn-sm flex-1 update-cart" {% if not product.in_stock %}disabled{% endif %}>
+        <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
+        <span>Add</span>
       </button>
-      <a href="{% url 'detail' product.id %}" class="btn btn-outline-secondary btn-sm" title="View Specifications">
-        <i class="bi bi-eye"></i>
+      <a href="{% url 'detail' product.id %}" class="cc-btn cc-btn-secondary cc-btn-sm px-2.5" title="View Specifications" aria-label="View {{ product.name }} specifications">
+        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
       </a>
-      <form method="post" action="{% url 'toggle_compare' product.id %}" class="d-inline">
+      <form method="post" action="{% url 'toggle_compare' product.id %}" class="inline-flex">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button type="submit" class="btn btn-sm {% if compare_ids and product.id in compare_ids %}btn-dark{% else %}btn-outline-dark{% endif %}" title="Compare">
-          <i class="bi bi-columns-gap"></i>
+        <button type="submit" title="Compare product" aria-label="Compare {{ product.name }}" class="cc-btn cc-btn-sm px-2.5 {% if compare_ids and product.id in compare_ids %}cc-btn-tech{% else %}cc-btn-secondary{% endif %}">
+          <i data-lucide="columns-3" class="w-3.5 h-3.5"></i>
         </button>
       </form>
     </div>
   </div>
-</div>
+</article>

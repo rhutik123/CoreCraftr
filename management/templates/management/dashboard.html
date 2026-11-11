@@ -5,233 +5,234 @@
 {% block page_subheading %}Live database snapshot of CoreCraftr hardware products, stock health, and activity{% endblock %}
 
 {% block portal_content %}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="portal-kpi-card">
-      <div class="small text-muted">Published SKUs</div>
-      <div class="portal-kpi-value text-success">{{ metrics.published_count }}</div>
-      <div class="small text-muted mt-1">{{ metrics.total_skus }} total products</div>
+<!-- 6-KPI Executive Grid -->
+<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 mb-6">
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Published SKUs</div>
+    <div class="mt-1.5 text-2xl font-extrabold text-green-400 cc-mono">{{ metrics.published_count }}</div>
+    <div class="text-[11px] text-muted mt-1 cc-mono">{{ metrics.total_skus }} total products</div>
+  </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Active Categories</div>
+    <div class="mt-1.5 text-2xl font-extrabold text-ink cc-mono">{{ metrics.active_categories_count }}</div>
+    <div class="text-[11px] text-muted mt-1">of {{ metrics.total_categories_count }} categories</div>
+  </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Low Stock</div>
+    <div class="mt-1.5 text-2xl font-extrabold text-amber-400 cc-mono">{{ metrics.low_stock_count }}</div>
+    <div class="text-[11px] mt-1">
+      <a href="{% url 'management:inventory_list' %}?state=low" class="text-tech-ink hover:underline">Inspect low stock &rarr;</a>
     </div>
   </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="portal-kpi-card">
-      <div class="small text-muted">Active Categories</div>
-      <div class="portal-kpi-value">{{ metrics.active_categories_count }}</div>
-      <div class="small text-muted mt-1">of {{ metrics.total_categories_count }} categories</div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Out of Stock</div>
+    <div class="mt-1.5 text-2xl font-extrabold text-red-400 cc-mono">{{ metrics.out_of_stock_count }}</div>
+    <div class="text-[11px] mt-1">
+      <a href="{% url 'management:inventory_list' %}?state=out" class="text-tech-ink hover:underline">Inspect out of stock &rarr;</a>
     </div>
   </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="portal-kpi-card">
-      <div class="small text-muted">Low Stock</div>
-      <div class="portal-kpi-value text-warning">{{ metrics.low_stock_count }}</div>
-      <div class="small text-muted mt-1"><a href="{% url 'management:inventory_list' %}?state=low">Inspect low stock</a></div>
-    </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Drafts / Archived</div>
+    <div class="mt-1.5 text-2xl font-extrabold text-ink cc-mono">{{ metrics.draft_count }} / {{ metrics.archived_count }}</div>
+    <div class="text-[11px] text-muted mt-1">{{ pending_ai_drafts }} pending AI draft(s)</div>
   </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="portal-kpi-card">
-      <div class="small text-muted">Out of Stock</div>
-      <div class="portal-kpi-value text-danger">{{ metrics.out_of_stock_count }}</div>
-      <div class="small text-muted mt-1"><a href="{% url 'management:inventory_list' %}?state=out">Inspect out of stock</a></div>
-    </div>
-  </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="portal-kpi-card">
-      <div class="small text-muted">Drafts / Archived</div>
-      <div class="portal-kpi-value">{{ metrics.draft_count }} / {{ metrics.archived_count }}</div>
-      <div class="small text-muted mt-1">{{ pending_ai_drafts }} pending AI draft(s)</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="portal-kpi-card">
-      <div class="small text-muted">Verified Cost Value</div>
-      {% if metrics.valued_sku_count > 0 %}
-      <div class="portal-kpi-value fs-5">Rs. {{ metrics.cost_valuation_total|floatformat:2 }}</div>
-      <div class="small text-muted mt-1">{{ metrics.valued_sku_count }}/{{ metrics.non_archived_count }} SKUs with cost</div>
-      {% else %}
-      <div class="portal-kpi-value fs-6 text-muted">No cost data</div>
-      <div class="small text-muted mt-1">Set cost_price on SKUs</div>
-      {% endif %}
-    </div>
+  <div class="cc-card p-4">
+    <div class="text-xs text-muted font-medium">Verified Cost Value</div>
+    {% if metrics.valued_sku_count > 0 %}
+      <div class="mt-1.5 text-lg font-extrabold text-accent-ink cc-mono">Rs. {{ metrics.cost_valuation_total|floatformat:2 }}</div>
+      <div class="text-[11px] text-muted mt-1 cc-mono">{{ metrics.valued_sku_count }}/{{ metrics.non_archived_count }} SKUs with cost</div>
+    {% else %}
+      <div class="mt-1.5 text-sm font-bold text-muted">No cost data</div>
+      <div class="text-[11px] text-muted mt-1">Set cost_price on SKUs</div>
+    {% endif %}
   </div>
 </div>
 
-<div class="d-flex flex-wrap gap-2 mb-4">
-  <a href="{% url 'management:product_create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>Add Product
+<!-- Quick Actions Toolbar -->
+<div class="flex flex-wrap gap-2.5 mb-6">
+  <a href="{% url 'management:product_create' %}" class="cc-btn cc-btn-primary cc-btn-sm">
+    <i data-lucide="plus" class="w-4 h-4"></i><span>Add Product</span>
   </a>
-  <a href="{% url 'management:inventory_list' %}" class="btn btn-outline-dark">
-    <i class="bi bi-sliders me-1"></i>Adjust Stock
+  <a href="{% url 'management:inventory_list' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i><span>Adjust Stock</span>
   </a>
-  <a href="{% url 'management:import_export' %}" class="btn btn-outline-secondary">
-    <i class="bi bi-upload me-1"></i>Bulk CSV Import / Export
+  <a href="{% url 'management:import_export' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+    <i data-lucide="upload" class="w-4 h-4"></i><span>Bulk CSV Import / Export</span>
   </a>
-  <a href="{% url 'management:reports' %}" class="btn btn-outline-secondary">
-    <i class="bi bi-graph-up me-1"></i>View Valuation Report
+  <a href="{% url 'management:reports' %}" class="cc-btn cc-btn-secondary cc-btn-sm">
+    <i data-lucide="trending-up" class="w-4 h-4"></i><span>View Valuation Report</span>
   </a>
 </div>
 
-<div class="row g-4">
-  <div class="col-lg-6">
-    <div class="portal-card h-100">
-      <div class="portal-card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-exclamation-triangle text-warning me-2"></i>Stock Attention Needed</span>
-        <a href="{% url 'management:inventory_list' %}" class="small text-decoration-none">All Stock</a>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
-          <thead class="table-light">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Stock Attention -->
+  <div class="cc-card overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+      <h2 class="text-sm font-bold text-ink flex items-center gap-2">
+        <i data-lucide="triangle-alert" class="w-4 h-4 text-amber-400"></i>
+        <span>Stock Attention Needed</span>
+      </h2>
+      <a href="{% url 'management:inventory_list' %}" class="text-xs font-semibold text-tech-ink hover:underline">All Stock</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Product</th>
+            <th>Available</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in metrics.out_of_stock_items|slice:":6" %}
             <tr>
-              <th>SKU</th>
-              <th>Product</th>
-              <th>Available</th>
-              <th>Action</th>
+              <td><code class="cc-mono text-xs text-accent-ink">{{ p.sku }}</code></td>
+              <td class="text-xs sm:text-sm font-medium text-ink">{{ p.name|truncatechars:38 }}</td>
+              <td><span class="cc-badge cc-badge-incompatible text-[10px]">Out of Stock (0)</span></td>
+              <td><a href="{% url 'management:inventory_list' %}?q={{ p.sku }}" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2 text-[11px]">Restock</a></td>
             </tr>
-          </thead>
-          <tbody>
-            {% for p in metrics.out_of_stock_items|slice:":6" %}
+          {% endfor %}
+          {% for p in metrics.low_stock_items|slice:":6" %}
             <tr>
-              <td><code>{{ p.sku }}</code></td>
-              <td>{{ p.name|truncatechars:38 }}</td>
-              <td><span class="badge bg-danger">Out of Stock (0)</span></td>
-              <td><a href="{% url 'management:inventory_list' %}?q={{ p.sku }}" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">Restock</a></td>
+              <td><code class="cc-mono text-xs text-accent-ink">{{ p.sku }}</code></td>
+              <td class="text-xs sm:text-sm font-medium text-ink">{{ p.name|truncatechars:38 }}</td>
+              <td><span class="cc-badge cc-badge-warning text-[10px]">Low ({{ p.inventory.available_quantity }})</span></td>
+              <td><a href="{% url 'management:inventory_list' %}?q={{ p.sku }}" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2 text-[11px]">Adjust</a></td>
             </tr>
-            {% endfor %}
-            {% for p in metrics.low_stock_items|slice:":6" %}
+          {% endfor %}
+          {% if not metrics.out_of_stock_items and not metrics.low_stock_items %}
             <tr>
-              <td><code>{{ p.sku }}</code></td>
-              <td>{{ p.name|truncatechars:38 }}</td>
-              <td><span class="badge bg-warning text-dark">Low ({{ p.inventory.available_quantity }})</span></td>
-              <td><a href="{% url 'management:inventory_list' %}?q={{ p.sku }}" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">Adjust</a></td>
+              <td colspan="4" class="text-center text-xs text-muted py-6">All published products are above low-stock thresholds.</td>
             </tr>
-            {% endfor %}
-            {% if not metrics.out_of_stock_items and not metrics.low_stock_items %}
-            <tr>
-              <td colspan="4" class="text-center text-muted py-4">All published products are above low-stock thresholds.</td>
-            </tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
+          {% endif %}
+        </tbody>
+      </table>
     </div>
   </div>
 
-  <div class="col-lg-6">
-    <div class="portal-card h-100">
-      <div class="portal-card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-clock-history text-primary me-2"></i>Recent Stock Movements</span>
-        <a href="{% url 'management:stock_history' %}" class="small text-decoration-none">Full History</a>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
-          <thead class="table-light">
+  <!-- Recent Stock Movements -->
+  <div class="cc-card overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+      <h2 class="text-sm font-bold text-ink flex items-center gap-2">
+        <i data-lucide="clock" class="w-4 h-4 text-tech-ink"></i>
+        <span>Recent Stock Movements</span>
+      </h2>
+      <a href="{% url 'management:stock_history' %}" class="text-xs font-semibold text-tech-ink hover:underline">Full History</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Change</th>
+            <th>Reason</th>
+            <th>By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mv in recent_movements %}
             <tr>
-              <th>SKU</th>
-              <th>Change</th>
-              <th>Reason</th>
-              <th>By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for mv in recent_movements %}
-            <tr>
-              <td><code>{{ mv.product.sku }}</code></td>
+              <td><code class="cc-mono text-xs text-accent-ink">{{ mv.product.sku }}</code></td>
               <td>
-                <span class="badge {% if mv.change_amount >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
-                  {% if mv.change_amount >= 0 %}+{% endif %}{{ mv.change_amount }} -> {{ mv.new_quantity }}
+                <span class="cc-badge cc-mono text-[10px] {% if mv.change_amount >= 0 %}cc-badge-compatible{% else %}cc-badge-incompatible{% endif %}">
+                  {% if mv.change_amount >= 0 %}+{% endif %}{{ mv.change_amount }} &rarr; {{ mv.new_quantity }}
                 </span>
               </td>
-              <td class="small">{{ mv.get_reason_display }}</td>
-              <td class="small text-muted">{{ mv.performed_by.username|default:'System' }}</td>
+              <td class="text-xs text-ink">{{ mv.get_reason_display }}</td>
+              <td class="text-xs text-muted">{{ mv.performed_by.username|default:'System' }}</td>
             </tr>
-            {% empty %}
+          {% empty %}
             <tr>
-              <td colspan="4" class="text-center text-muted py-4">No stock movements logged yet.</td>
+              <td colspan="4" class="text-center text-xs text-muted py-6">No stock movements logged yet.</td>
             </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
-
-  <div class="col-12">
-    <div class="portal-card">
-      <div class="portal-card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-box-seam me-2"></i>Recently Updated Products</span>
-        <a href="{% url 'management:product_list' %}" class="small text-decoration-none">Manage Catalog</a>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>SKU</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Status</th>
-              <th>Stock</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in recent_products %}
-            <tr>
-              <td><code>{{ p.sku }}</code></td>
-              <td class="fw-semibold">{{ p.name }}</td>
-              <td>{{ p.category.name }}</td>
-              <td>Rs. {{ p.price|floatformat:2 }}</td>
-              <td>
-                <span class="badge {% if p.status == 'published' %}bg-success{% elif p.status == 'draft' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                  {{ p.get_status_display }}
-                </span>
-              </td>
-              <td>{{ p.stock_quantity }}</td>
-              <td class="text-end">
-                <a href="{% url 'management:product_edit' p.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7" class="text-center text-muted py-4">No products found.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {% if is_portal_owner %}
-  <div class="col-12">
-    <div class="portal-card">
-      <div class="portal-card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-shield-check text-primary me-2"></i>Owner Recent Audit Activity</span>
-        <a href="{% url 'management:audit_log' %}" class="small text-decoration-none">View Full Audit Log</a>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Time</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for log in recent_audit %}
-            <tr>
-              <td class="small text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</td>
-              <td class="small fw-semibold">{{ log.actor_username }} ({{ log.actor_role }})</td>
-              <td><code>{{ log.action }}</code></td>
-              <td class="small">{{ log.summary }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="text-center text-muted py-3">No audit entries yet.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 </div>
+
+<!-- Recently Updated Products -->
+<div class="cc-card overflow-hidden mb-6">
+  <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+    <h2 class="text-sm font-bold text-ink flex items-center gap-2">
+      <i data-lucide="package" class="w-4 h-4 text-accent-ink"></i>
+      <span>Recently Updated Products</span>
+    </h2>
+    <a href="{% url 'management:product_list' %}" class="text-xs font-semibold text-tech-ink hover:underline">Manage Catalog</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="cc-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Price</th>
+          <th>Status</th>
+          <th>Stock</th>
+          <th class="text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in recent_products %}
+          <tr>
+            <td><code class="cc-mono text-xs text-accent-ink">{{ p.sku }}</code></td>
+            <td class="font-semibold text-ink text-xs sm:text-sm">{{ p.name }}</td>
+            <td class="text-xs text-muted">{{ p.category.name }}</td>
+            <td class="cc-mono text-xs sm:text-sm font-bold text-ink">Rs. {{ p.price|floatformat:2 }}</td>
+            <td>
+              <span class="cc-badge text-[10px] {% if p.status == 'published' %}cc-badge-compatible{% elif p.status == 'draft' %}cc-badge-warning{% else %}cc-badge-neutral{% endif %}">
+                {{ p.get_status_display }}
+              </span>
+            </td>
+            <td class="cc-mono text-xs font-bold">{{ p.stock_quantity }}</td>
+            <td class="text-right">
+              <a href="{% url 'management:product_edit' p.id %}" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2.5 text-xs">Edit</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-center text-xs text-muted py-6">No products found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_portal_owner %}
+  <div class="cc-card overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-border flex items-center justify-between">
+      <h2 class="text-sm font-bold text-ink flex items-center gap-2">
+        <i data-lucide="shield-check" class="w-4 h-4 text-tech-ink"></i>
+        <span>Owner Recent Audit Activity</span>
+      </h2>
+      <a href="{% url 'management:audit_log' %}" class="text-xs font-semibold text-tech-ink hover:underline">View Full Audit Log</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Summary</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_audit %}
+            <tr>
+              <td class="text-xs text-muted cc-mono">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+              <td class="text-xs font-semibold text-ink">{{ log.actor_username }} ({{ log.actor_role }})</td>
+              <td><code class="cc-mono text-xs text-accent-ink">{{ log.action }}</code></td>
+              <td class="text-xs text-muted">{{ log.summary }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-center text-xs text-muted py-6">No audit entries yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}

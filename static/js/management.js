@@ -14,7 +14,12 @@
         return div.innerHTML;
     }
 
-    // Dynamic Category Spec Rendering + Live Preview + Duplicate Check + AI Research
+    function refreshIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
+    }
+
     const productForm = document.getElementById('portal-product-form');
     if (!productForm) return;
 
@@ -40,7 +45,6 @@
     const customSpecContainer = document.getElementById('custom-spec-rows');
     const addCustomSpecBtn = document.getElementById('btn-add-custom-spec');
 
-    // Collect currently rendered spec field values before switching categories
     function readCurrentSpecValues() {
         const vals = {};
         if (!dynamicSpecsContainer) return vals;
@@ -54,43 +58,44 @@
         const id = 'spec_input_' + field.name;
         const val = currentVal != null ? String(currentVal) : '';
         const criticalBadge = field.compatibility_critical
-            ? '<span class="badge bg-warning text-dark ms-1 spec-critical-badge">Compatibility</span>'
+            ? '<span class="cc-badge cc-badge-warning text-[10px] ml-1.5 spec-critical-badge">Compatibility</span>'
             : '';
         const unitSuffix = field.unit
-            ? '<span class="input-group-text">' + escapeHtml(field.unit) + '</span>'
+            ? '<span class="px-2.5 py-1.5 text-xs font-semibold text-muted bg-surface border border-l-0 border-border rounded-r-lg shrink-0">' + escapeHtml(field.unit) + '</span>'
             : '';
 
         let controlHtml = '';
         if (field.type === 'bool') {
             controlHtml =
-                '<select class="form-select form-select-sm spec-live-input" id="' + id + '" name="spec_' + escapeHtml(field.name) + '" data-label="' + escapeHtml(field.label) + '" data-unit="">' +
+                '<select class="cc-select cc-input-sm spec-live-input" id="' + id + '" name="spec_' + escapeHtml(field.name) + '" data-label="' + escapeHtml(field.label) + '" data-unit="">' +
                 '<option value=""' + (val === '' ? ' selected' : '') + '>Unknown / Unspecified</option>' +
                 '<option value="true"' + (val === 'true' ? ' selected' : '') + '>Yes</option>' +
                 '<option value="false"' + (val === 'false' ? ' selected' : '') + '>No</option>' +
                 '</select>';
         } else if (field.type === 'text') {
             controlHtml =
-                '<textarea class="form-control form-control-sm spec-live-input" rows="2" id="' + id + '" name="spec_' + escapeHtml(field.name) + '" data-label="' + escapeHtml(field.label) + '" data-unit="">' + escapeHtml(val) + '</textarea>';
+                '<textarea class="cc-textarea cc-input-sm spec-live-input" rows="2" id="' + id + '" name="spec_' + escapeHtml(field.name) + '" data-label="' + escapeHtml(field.label) + '" data-unit="">' + escapeHtml(val) + '</textarea>';
         } else {
-            const inputType = (field.type === 'int') ? 'number' : (field.type === 'decimal' ? 'number' : 'text');
+            const inputType = (field.type === 'int' || field.type === 'decimal') ? 'number' : 'text';
             const stepAttr = field.type === 'decimal' ? ' step="0.01"' : '';
             const minAttr = (field.type === 'int' || field.type === 'decimal') ? ' min="0"' : '';
+            const roundedClass = unitSuffix ? ' rounded-r-none' : '';
             const inputEl =
                 '<input type="' + inputType + '"' + stepAttr + minAttr +
-                ' class="form-control form-control-sm spec-live-input" id="' + id +
+                ' class="cc-input cc-input-sm spec-live-input' + roundedClass + '" id="' + id +
                 '" name="spec_' + escapeHtml(field.name) +
                 '" value="' + escapeHtml(val) +
                 '" placeholder="' + escapeHtml(field.placeholder || 'Leave blank if unknown') +
                 '" data-label="' + escapeHtml(field.label) +
                 '" data-unit="' + escapeHtml(field.unit || '') + '">';
             controlHtml = unitSuffix
-                ? '<div class="input-group input-group-sm">' + inputEl + unitSuffix + '</div>'
+                ? '<div class="flex items-stretch">' + inputEl + unitSuffix + '</div>'
                 : inputEl;
         }
 
         return (
-            '<div class="col-md-6">' +
-            '<label for="' + id + '" class="form-label form-label-sm fw-semibold mb-1">' +
+            '<div>' +
+            '<label for="' + id + '" class="cc-label">' +
             escapeHtml(field.label) + criticalBadge +
             '</label>' +
             controlHtml +
@@ -111,7 +116,7 @@
                 const html = (data.fields || [])
                     .map((f) => renderSpecFieldControl(f, prevValues[f.name] || ''))
                     .join('');
-                dynamicSpecsContainer.innerHTML = html || '<div class="col-12 text-muted small">No category-specific fields defined. Use custom specifications below.</div>';
+                dynamicSpecsContainer.innerHTML = html || '<div class="sm:col-span-2 text-xs text-muted">No category-specific fields defined. Use custom specifications below.</div>';
                 updateLivePreview();
             } catch (err) {
                 console.warn('Could not load category spec schema:', err);
@@ -119,18 +124,18 @@
         });
     }
 
-    // Custom key-value specification rows
     function appendCustomSpecRow(groupVal, keyVal, valVal, unitVal) {
         if (!customSpecContainer) return;
         const row = document.createElement('div');
-        row.className = 'row g-2 align-items-center mb-2 custom-spec-row';
+        row.className = 'grid grid-cols-12 gap-2 items-center custom-spec-row';
         row.innerHTML =
-            '<div class="col-md-3"><input type="text" name="custom_spec_group[]" class="form-control form-control-sm" placeholder="Group (e.g. Cooling)" value="' + escapeHtml(groupVal || 'Additional') + '"></div>' +
-            '<div class="col-md-4"><input type="text" name="custom_spec_key[]" class="form-control form-control-sm" placeholder="Spec Name" value="' + escapeHtml(keyVal || '') + '"></div>' +
-            '<div class="col-md-3"><input type="text" name="custom_spec_value[]" class="form-control form-control-sm" placeholder="Value" value="' + escapeHtml(valVal || '') + '"></div>' +
-            '<div class="col-md-1"><input type="text" name="custom_spec_unit[]" class="form-control form-control-sm" placeholder="Unit" value="' + escapeHtml(unitVal || '') + '"></div>' +
-            '<div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-custom-spec" title="Remove row"><i class="bi bi-x"></i></button></div>';
+            '<div class="col-span-3"><input type="text" name="custom_spec_group[]" class="cc-input cc-input-sm" placeholder="Group (e.g. Cooling)" value="' + escapeHtml(groupVal || 'Additional') + '"></div>' +
+            '<div class="col-span-4"><input type="text" name="custom_spec_key[]" class="cc-input cc-input-sm" placeholder="Spec Name" value="' + escapeHtml(keyVal || '') + '"></div>' +
+            '<div class="col-span-3"><input type="text" name="custom_spec_value[]" class="cc-input cc-input-sm" placeholder="Value" value="' + escapeHtml(valVal || '') + '"></div>' +
+            '<div class="col-span-1"><input type="text" name="custom_spec_unit[]" class="cc-input cc-input-sm" placeholder="Unit" value="' + escapeHtml(unitVal || '') + '"></div>' +
+            '<div class="col-span-1 text-right"><button type="button" class="cc-btn cc-btn-danger cc-btn-sm px-2 btn-remove-custom-spec" title="Remove row"><i data-lucide="x" class="w-3.5 h-3.5"></i></button></div>';
         customSpecContainer.appendChild(row);
+        refreshIcons();
     }
 
     if (addCustomSpecBtn && customSpecContainer) {
@@ -143,7 +148,6 @@
         });
     }
 
-    // Real-time live preview updater
     function updateLivePreview() {
         const pName = document.getElementById('live-preview-name');
         const pSku = document.getElementById('live-preview-sku');
@@ -161,7 +165,7 @@
         if (pStatus && statusSelect) {
             const st = statusSelect.value;
             pStatus.textContent = statusSelect.options[statusSelect.selectedIndex]?.text || st;
-            pStatus.className = 'badge ' + (st === 'published' ? 'bg-success' : (st === 'archived' ? 'bg-secondary' : 'bg-warning text-dark'));
+            pStatus.className = 'cc-badge text-[10px] ' + (st === 'published' ? 'cc-badge-compatible' : (st === 'archived' ? 'cc-badge-neutral' : 'cc-badge-warning'));
         }
         if (pDesc && shortDescInput) {
             pDesc.textContent = shortDescInput.value.trim() || 'Short summary will appear here.';
@@ -174,10 +178,10 @@
                     const label = el.dataset.label || '';
                     const unit = el.dataset.unit || '';
                     const formatted = el.tagName === 'SELECT' ? (v === 'true' ? 'Yes' : 'No') : (unit ? v + ' ' + unit : v);
-                    badges.push('<span class="badge bg-light text-dark border">' + escapeHtml(label) + ': ' + escapeHtml(formatted) + '</span>');
+                    badges.push('<span class="cc-badge cc-badge-neutral cc-mono text-[10px]">' + escapeHtml(label) + ': ' + escapeHtml(formatted) + '</span>');
                 }
             });
-            pSpecs.innerHTML = badges.join(' ') || '<span class="text-muted small">Key hardware highlights appear as specs are filled.</span>';
+            pSpecs.innerHTML = badges.join(' ') || '<span class="text-xs text-muted">Key hardware highlights appear as specs are filled.</span>';
         }
     }
 
@@ -199,7 +203,6 @@
         });
     }
 
-    // Advisory duplicate product warning check
     let dupTimer = null;
     async function runDuplicateCheck() {
         if (!duplicateCheckUrl || !duplicateBox) return;
@@ -217,19 +220,20 @@
             const data = await resp.json();
             const matches = data.matches || [];
             if (!matches.length) {
-                duplicateBox.classList.add('d-none');
+                duplicateBox.classList.add('hidden');
                 duplicateBox.innerHTML = '';
                 return;
             }
             const items = matches
-                .map((m) => '<li><strong>' + escapeHtml(m.name) + '</strong> (' + escapeHtml(m.sku) + ' - ' + escapeHtml(m.status) + '): ' + escapeHtml(m.reason) + '</li>')
+                .map((m) => '<li><strong>' + escapeHtml(m.name) + '</strong> (<code class="cc-mono">' + escapeHtml(m.sku) + '</code> - ' + escapeHtml(m.status) + '): ' + escapeHtml(m.reason) + '</li>')
                 .join('');
             duplicateBox.innerHTML =
-                '<div class="alert alert-warning mb-3">' +
-                '<strong><i class="bi bi-exclamation-triangle me-1"></i>Possible Duplicate Products Detected (review before saving):</strong>' +
-                '<ul class="mb-0 mt-1 small">' + items + '</ul>' +
+                '<div class="cc-alert cc-alert-warning flex-col mb-4">' +
+                '<div class="font-bold flex items-center gap-2"><i data-lucide="triangle-alert" class="w-4 h-4"></i><span>Possible Duplicate Products Detected (review before saving):</span></div>' +
+                '<ul class="list-disc pl-5 text-xs space-y-0.5">' + items + '</ul>' +
                 '</div>';
-            duplicateBox.classList.remove('d-none');
+            duplicateBox.classList.remove('hidden');
+            refreshIcons();
         } catch (err) {
             console.warn('Duplicate check error:', err);
         }
@@ -245,22 +249,20 @@
         el.addEventListener('change', trigger);
     });
 
-    // AI Product Specification Research Assistant
     const aiBtn = document.getElementById('btn-ai-research');
     const aiRefUrlInput = document.getElementById('id_ai_reference_url');
     const aiResultsPanel = document.getElementById('ai-research-results');
     const aiDraftInput = document.getElementById('id_ai_draft_id');
     const aiApprovalBox = document.getElementById('ai-approval-confirm-box');
     const aiApprovalCheckbox = document.getElementById('id_confirm_ai_approval');
-    let lastAiDraftData = null;
 
     if (aiBtn && aiResearchUrl && aiResultsPanel) {
         aiBtn.addEventListener('click', async () => {
             const prodName = nameInput ? nameInput.value.trim() : '';
             const catId = categorySelect ? categorySelect.value : '';
             if (!prodName || !catId) {
-                aiResultsPanel.innerHTML = '<div class="alert alert-warning small mb-0">Enter a Product Name and Category first before researching specifications.</div>';
-                aiResultsPanel.classList.remove('d-none');
+                aiResultsPanel.innerHTML = '<div class="cc-alert cc-alert-warning text-xs">Enter a Product Name and Category first before researching specifications.</div>';
+                aiResultsPanel.classList.remove('hidden');
                 return;
             }
 
@@ -270,7 +272,7 @@
 
             aiBtn.disabled = true;
             const origText = aiBtn.innerHTML;
-            aiBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Researching...';
+            aiBtn.textContent = 'Researching...';
 
             try {
                 const resp = await fetch(aiResearchUrl, {
@@ -291,21 +293,21 @@
                 const data = await resp.json();
                 if (!resp.ok) {
                     aiResultsPanel.innerHTML =
-                        '<div class="alert alert-danger small mb-0"><strong>Research Stopped:</strong> ' +
-                        escapeHtml(data.error || 'Request failed.') + ' Enter specifications manually below.</div>';
-                    aiResultsPanel.classList.remove('d-none');
+                        '<div class="cc-alert cc-alert-danger text-xs"><div><strong>Research Stopped:</strong> ' +
+                        escapeHtml(data.error || 'Request failed.') + ' Enter specifications manually below.</div></div>';
+                    aiResultsPanel.classList.remove('hidden');
                     return;
                 }
 
-                lastAiDraftData = data;
                 renderAiResults(data);
             } catch (err) {
                 aiResultsPanel.innerHTML =
-                    '<div class="alert alert-warning small mb-0">AI service unreachable right now. Enter specifications manually below.</div>';
-                aiResultsPanel.classList.remove('d-none');
+                    '<div class="cc-alert cc-alert-warning text-xs">AI service unreachable right now. Enter specifications manually below.</div>';
+                aiResultsPanel.classList.remove('hidden');
             } finally {
                 aiBtn.disabled = false;
                 aiBtn.innerHTML = origText;
+                refreshIcons();
             }
         });
     }
@@ -314,66 +316,69 @@
         if (!aiResultsPanel) return;
         if (!data.available) {
             aiResultsPanel.innerHTML =
-                '<div class="alert alert-secondary small mb-0">' +
-                '<i class="bi bi-info-circle me-1"></i>' + escapeHtml(data.summary_note || 'AI specification research is unavailable. Enter specifications manually below.') +
-                '</div>';
-            aiResultsPanel.classList.remove('d-none');
+                '<div class="cc-alert cc-alert-info text-xs">' +
+                '<div class="flex items-center gap-2"><i data-lucide="info" class="w-4 h-4 shrink-0"></i><span>' +
+                escapeHtml(data.summary_note || 'AI specification research is unavailable. Enter specifications manually below.') +
+                '</span></div></div>';
+            aiResultsPanel.classList.remove('hidden');
+            refreshIcons();
             return;
         }
 
         const badgeMap = {
-            verified_manufacturer: 'bg-success',
-            mixed_sources: 'bg-info text-dark',
-            partial: 'bg-warning text-dark',
-            unverified: 'bg-danger',
+            verified_manufacturer: 'cc-badge-compatible',
+            mixed_sources: 'cc-badge-tech',
+            partial: 'cc-badge-warning',
+            unverified: 'cc-badge-incompatible',
         };
-        const vBadge = badgeMap[data.verification_status] || 'bg-secondary';
+        const vBadge = badgeMap[data.verification_status] || 'cc-badge-neutral';
 
         const proposedEntries = Object.entries(data.proposed_specs || {});
         const proposedHtml = proposedEntries.length
-            ? proposedEntries.map(([k, v]) => '<li><code>' + escapeHtml(k) + '</code>: <strong>' + escapeHtml(Array.isArray(v) ? v.join(', ') : (typeof v === 'object' ? JSON.stringify(v) : v)) + '</strong></li>').join('')
+            ? proposedEntries.map(([k, v]) => '<li><code class="cc-mono text-accent-ink">' + escapeHtml(k) + '</code>: <strong>' + escapeHtml(Array.isArray(v) ? v.join(', ') : (typeof v === 'object' ? JSON.stringify(v) : v)) + '</strong></li>').join('')
             : '<li class="text-muted">No verified typed specs proposed.</li>';
 
         const conflictHtml = (data.conflicting_fields && data.conflicting_fields.length)
-            ? '<div class="alert alert-warning py-2 px-3 mt-2 mb-2 small"><strong>Conflicting Sources Detected (resolve manually):</strong><ul class="mb-0 mt-1">' +
+            ? '<div class="cc-alert cc-alert-warning flex-col text-xs mt-3"><strong>Conflicting Sources Detected (resolve manually):</strong><ul class="list-disc pl-5 mt-1">' +
               data.conflicting_fields.map((c) => '<li><strong>' + escapeHtml(c.label || c.field) + '</strong>: ' + escapeHtml((c.values || []).join(' vs ')) + ' — ' + escapeHtml(c.note) + '</li>').join('') +
               '</ul></div>'
             : '';
 
         const missingHtml = (data.missing_fields && data.missing_fields.length)
-            ? '<div class="small text-muted mt-2"><strong>Unverified / Missing Fields (kept unknown):</strong> ' +
-              data.missing_fields.map((m) => '<code>' + escapeHtml(m) + '</code>').join(', ') + '</div>'
+            ? '<div class="text-xs text-muted mt-2"><strong>Unverified / Missing Fields (kept unknown):</strong> ' +
+              data.missing_fields.map((m) => '<code class="cc-mono">' + escapeHtml(m) + '</code>').join(', ') + '</div>'
             : '';
 
         const rejectedHtml = (data.rejected_fields && data.rejected_fields.length)
-            ? '<div class="small text-danger mt-1"><strong>Safety Filter Notices:</strong> ' + data.rejected_fields.map(escapeHtml).join('; ') + '</div>'
+            ? '<div class="text-xs text-red-400 mt-2"><strong>Safety Filter Notices:</strong> ' + data.rejected_fields.map(escapeHtml).join('; ') + '</div>'
             : '';
 
         const sourcesHtml = (data.sources && data.sources.length)
-            ? '<div class="mt-2"><strong class="small">Attributed Sources:</strong><ul class="list-unstyled small mb-0 mt-1">' +
+            ? '<div class="mt-3"><strong class="text-xs text-ink">Attributed Sources:</strong><ul class="space-y-1 text-xs mt-1">' +
               data.sources.map((s) => {
                   const tag = s.origin_type === 'manufacturer'
-                      ? '<span class="badge bg-success-subtle text-success border border-success-subtle me-1">Manufacturer</span>'
-                      : '<span class="badge bg-light text-dark border me-1">Third-Party</span>';
-                  return '<li class="mb-1">' + tag + '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(s.title || s.url) + '</a></li>';
+                      ? '<span class="cc-badge cc-badge-compatible text-[10px] mr-1.5">Manufacturer</span>'
+                      : '<span class="cc-badge cc-badge-neutral text-[10px] mr-1.5">Third-Party</span>';
+                  return '<li>' + tag + '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener noreferrer" class="text-tech-ink hover:underline">' + escapeHtml(s.title || s.url) + '</a></li>';
               }).join('') +
               '</ul></div>'
-            : '<div class="alert alert-danger py-1 px-2 small mt-2 mb-1">No verified source URL provided; review carefully before saving.</div>';
+            : '<div class="cc-alert cc-alert-danger text-xs mt-2 py-2">No verified source URL provided; review carefully before saving.</div>';
 
         aiResultsPanel.innerHTML =
-            '<div class="border rounded p-3 bg-light">' +
-            '<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">' +
-            '<div><span class="badge ' + vBadge + ' me-1">' + escapeHtml(data.verification_label) + '</span>' +
-            '<span class="badge bg-dark">Confidence: ' + escapeHtml(data.confidence) + '</span></div>' +
-            '<div class="d-flex gap-2">' +
-            '<button type="button" class="btn btn-sm btn-success" id="btn-apply-ai-draft"><i class="bi bi-check2-circle me-1"></i>Populate Editable Form Fields</button>' +
-            '<button type="button" class="btn btn-sm btn-outline-secondary" id="btn-discard-ai-draft">Discard</button>' +
+            '<div class="cc-panel-elevated p-4 space-y-2.5">' +
+            '<div class="flex flex-wrap justify-between items-center gap-2">' +
+            '<div class="flex flex-wrap gap-1.5"><span class="cc-badge ' + vBadge + '">' + escapeHtml(data.verification_label) + '</span>' +
+            '<span class="cc-badge cc-badge-neutral cc-mono">Confidence: ' + escapeHtml(data.confidence) + '</span></div>' +
+            '<div class="flex gap-2">' +
+            '<button type="button" class="cc-btn cc-btn-success cc-btn-sm" id="btn-apply-ai-draft"><i data-lucide="circle-check" class="w-3.5 h-3.5"></i><span>Populate Editable Form Fields</span></button>' +
+            '<button type="button" class="cc-btn cc-btn-secondary cc-btn-sm" id="btn-discard-ai-draft">Discard</button>' +
             '</div></div>' +
-            (data.summary_note ? '<p class="small mb-2">' + escapeHtml(data.summary_note) + '</p>' : '') +
-            '<div class="small"><strong>Suggested Specifications (Editable Draft #' + escapeHtml(data.draft_id) + '):</strong><ul class="mb-1 mt-1">' + proposedHtml + '</ul></div>' +
+            (data.summary_note ? '<p class="text-xs text-muted">' + escapeHtml(data.summary_note) + '</p>' : '') +
+            '<div class="text-xs text-ink"><strong>Suggested Specifications (Editable Draft #' + escapeHtml(data.draft_id) + '):</strong><ul class="list-disc pl-5 mt-1 space-y-0.5">' + proposedHtml + '</ul></div>' +
             conflictHtml + missingHtml + rejectedHtml + sourcesHtml +
             '</div>';
-        aiResultsPanel.classList.remove('d-none');
+        aiResultsPanel.classList.remove('hidden');
+        refreshIcons();
 
         const applyBtn = document.getElementById('btn-apply-ai-draft');
         const discardBtn = document.getElementById('btn-discard-ai-draft');
@@ -388,9 +393,9 @@
                     await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
                 }
                 if (aiDraftInput) aiDraftInput.value = '';
-                if (aiApprovalBox) aiApprovalBox.classList.add('d-none');
+                if (aiApprovalBox) aiApprovalBox.classList.add('hidden');
                 if (aiApprovalCheckbox) aiApprovalCheckbox.checked = false;
-                aiResultsPanel.innerHTML = '<div class="text-muted small">AI specification draft discarded.</div>';
+                aiResultsPanel.innerHTML = '<div class="text-xs text-muted">AI specification draft discarded.</div>';
             });
         }
     }
@@ -418,7 +423,7 @@
         });
 
         if (aiDraftInput) aiDraftInput.value = data.draft_id || '';
-        if (aiApprovalBox) aiApprovalBox.classList.remove('d-none');
+        if (aiApprovalBox) aiApprovalBox.classList.remove('hidden');
         if (aiApprovalCheckbox) aiApprovalCheckbox.checked = true;
         updateLivePreview();
     }

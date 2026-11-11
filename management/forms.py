@@ -10,93 +10,93 @@ class ProductForm(forms.Form):
 
     name = forms.CharField(
         max_length=200,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. AMD Ryzen 5 7600X'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'e.g. AMD Ryzen 5 7600X'}),
     )
     sku = forms.CharField(
         max_length=60,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Auto-generated if blank (must be unique)'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'Auto-generated if blank (must be unique)'}),
     )
     model_number = forms.CharField(
         max_length=120,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Manufacturer MPN / Model Code'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'Manufacturer MPN / Model Code'}),
     )
     category = forms.ModelChoiceField(
         queryset=Category.objects.order_by('display_order', 'name'),
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        widget=forms.Select(attrs={'class': 'cc-select'}),
     )
     brand = forms.ModelChoiceField(
         queryset=Brand.objects.order_by('name'),
         required=False,
         empty_label='-- Select Brand --',
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        widget=forms.Select(attrs={'class': 'cc-select'}),
     )
     new_brand_name = forms.CharField(
         max_length=120,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional: create new brand'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'Optional: create new brand'}),
     )
     status = forms.ChoiceField(
         choices=Product.STATUS_CHOICES,
         initial=Product.STATUS_DRAFT,
-        widget=forms.Select(attrs={'class': 'form-select'}),
+        widget=forms.Select(attrs={'class': 'cc-select'}),
     )
     price = forms.DecimalField(
         max_digits=10,
         decimal_places=2,
         min_value=0,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+        widget=forms.NumberInput(attrs={'class': 'cc-input', 'step': '0.01', 'min': '0'}),
     )
     cost_price = forms.DecimalField(
         max_digits=10,
         decimal_places=2,
         min_value=0,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'Optional internal cost'}),
+        widget=forms.NumberInput(attrs={'class': 'cc-input', 'step': '0.01', 'min': '0', 'placeholder': 'Optional internal cost'}),
     )
     price_change_reason = forms.CharField(
         max_length=255,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional reason for price/cost update'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'Optional reason for price/cost update'}),
     )
     warranty_months = forms.IntegerField(
         min_value=0,
         initial=36,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        widget=forms.NumberInput(attrs={'class': 'cc-input', 'min': '0'}),
     )
     short_description = forms.CharField(
         max_length=320,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Short summary shown on catalog cards'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'Short summary shown on catalog cards'}),
     )
     description = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Full product overview & notes'}),
+        widget=forms.Textarea(attrs={'class': 'cc-textarea', 'rows': 4, 'placeholder': 'Full product overview & notes'}),
     )
     is_featured = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxInput(attrs={'class': 'cc-checkbox'}),
     )
     digital = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxInput(attrs={'class': 'cc-checkbox'}),
     )
     initial_quantity = forms.IntegerField(
         min_value=0,
         initial=0,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        widget=forms.NumberInput(attrs={'class': 'cc-input', 'min': '0'}),
     )
     low_stock_threshold = forms.IntegerField(
         min_value=0,
         initial=3,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        widget=forms.NumberInput(attrs={'class': 'cc-input', 'min': '0'}),
     )
     restock_date = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        widget=forms.DateInput(attrs={'class': 'cc-input', 'type': 'date'}),
     )
 
 
@@ -128,7 +128,7 @@ class CSVImportUploadForm(forms.Form):
     """Upload form for Step 1 of CSV bulk import."""
 
     csv_file = forms.FileField(
-        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': '.csv,text/csv'}),
+        widget=forms.ClearableFileInput(attrs={'class': 'cc-input', 'accept': '.csv,text/csv'}),
     )
 
     def clean_csv_file(self):
@@ -146,27 +146,27 @@ class CreateManagerUserForm(forms.Form):
 
     username = forms.CharField(
         max_length=150,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. inv_alex'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input', 'placeholder': 'e.g. inv_alex'}),
     )
     email = forms.EmailField(
         required=False,
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'alex@corecraftr.local'}),
+        widget=forms.EmailInput(attrs={'class': 'cc-input', 'placeholder': 'alex@corecraftr.local'}),
     )
     first_name = forms.CharField(
         max_length=150,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input'}),
     )
     last_name = forms.CharField(
         max_length=150,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        widget=forms.TextInput(attrs={'class': 'cc-input'}),
     )
     password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+        widget=forms.PasswordInput(attrs={'class': 'cc-input', 'autocomplete': 'new-password'}),
     )
     confirm_password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+        widget=forms.PasswordInput(attrs={'class': 'cc-input', 'autocomplete': 'new-password'}),
     )
 
     def clean(self):

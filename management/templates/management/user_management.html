@@ -1,151 +1,157 @@
 {% extends "management/base_portal.html" %}
 
 {% block portal_title %}Users & Staff Roles{% endblock %}
-{% block page_heading %}Owner Access & Staff Role Management{% endblock %}
+{% block page_heading %}Owner Access &amp; Staff Role Management{% endblock %}
 {% block page_subheading %}Assign Inventory Manager permissions, provision staff accounts, and protect Owner privileges{% endblock %}
 
 {% block portal_content %}
-<div class="row g-4 mb-4">
-  <div class="col-lg-5">
-    <div class="portal-card">
-      <div class="portal-card-header"><i class="bi bi-person-plus me-2"></i>Provision New Inventory Manager</div>
-      <div class="p-3">
-        <form method="post" action="{% url 'management:user_management_action' %}">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create_manager">
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label form-label-sm mb-1">Username *</label>
-              {{ create_form.username }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label form-label-sm mb-1">Email</label>
-              {{ create_form.email }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label form-label-sm mb-1">First Name</label>
-              {{ create_form.first_name }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label form-label-sm mb-1">Last Name</label>
-              {{ create_form.last_name }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label form-label-sm mb-1">Password *</label>
-              {{ create_form.password }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label form-label-sm mb-1">Confirm Password *</label>
-              {{ create_form.confirm_password }}
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary btn-sm mt-3">
-            <i class="bi bi-shield-plus me-1"></i>Create Inventory Manager
-          </button>
-        </form>
-      </div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+  <!-- Provision Manager Form -->
+  <div class="lg:col-span-5 cc-card overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
+      <i data-lucide="user-plus" class="w-4 h-4 text-accent-ink"></i>
+      <span>Provision New Inventory Manager</span>
     </div>
+    <form method="post" action="{% url 'management:user_management_action' %}" class="p-5 space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_manager">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="cc-label">Username *</label>
+          {{ create_form.username }}
+        </div>
+        <div>
+          <label class="cc-label">Email</label>
+          {{ create_form.email }}
+        </div>
+        <div>
+          <label class="cc-label">First Name</label>
+          {{ create_form.first_name }}
+        </div>
+        <div>
+          <label class="cc-label">Last Name</label>
+          {{ create_form.last_name }}
+        </div>
+        <div>
+          <label class="cc-label">Password *</label>
+          {{ create_form.password }}
+        </div>
+        <div>
+          <label class="cc-label">Confirm Password *</label>
+          {{ create_form.confirm_password }}
+        </div>
+      </div>
+      <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm">
+        <i data-lucide="shield-plus" class="w-4 h-4"></i>
+        <span>Create Inventory Manager</span>
+      </button>
+    </form>
   </div>
 
-  <div class="col-lg-7">
-    <div class="portal-card h-100">
-      <div class="portal-card-header"><i class="bi bi-info-circle me-2"></i>Role Access Guarantees</div>
-      <div class="p-3 small text-muted">
-        <ul class="mb-0">
-          <li><strong>Owner (Superuser):</strong> Full portal access including user/role administration and immutable audit logs. Cannot be deactivated or demoted if last active superuser.</li>
-          <li><strong>Inventory Manager:</strong> Can manage products, images, hardware specs, AI spec research, stock adjustments, CSV import/export, and valuation reports. Blocked from managing users, roles, Django admin, or audit logs.</li>
-          <li><strong>Customer:</strong> Standard storefront shopper; receives <code>403 Forbidden</code> across all portal routes.</li>
-        </ul>
+  <!-- Role Access Guarantees -->
+  <div class="lg:col-span-7 cc-card overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-border bg-elevated/50 text-xs font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
+      <i data-lucide="info" class="w-4 h-4 text-tech-ink"></i>
+      <span>Role Access Guarantees</span>
+    </div>
+    <div class="p-5 text-xs sm:text-sm text-muted space-y-3 leading-relaxed">
+      <div>
+        <strong class="text-ink">Owner (Superuser):</strong> Full portal access including user/role administration and immutable audit logs. Cannot be deactivated or demoted if last active superuser.
+      </div>
+      <div>
+        <strong class="text-ink">Inventory Manager:</strong> Can manage products, images, hardware specs, AI spec research, stock adjustments, CSV import/export, and valuation reports. Blocked from managing users, roles, Django admin, or audit logs.
+      </div>
+      <div>
+        <strong class="text-ink">Customer:</strong> Standard storefront shopper; receives <code class="cc-mono text-red-400">403 Forbidden</code> across all portal routes.
       </div>
     </div>
   </div>
 </div>
 
-<div class="portal-card mb-3 p-3">
-  <form method="get" class="row g-2 align-items-center">
-    <div class="col-md-6">
-      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Search users by username, name, or email...">
-    </div>
-    <div class="col-md-2 d-grid">
-      <button type="submit" class="btn btn-primary btn-sm">Search</button>
-    </div>
-  </form>
-</div>
+<!-- Search Bar -->
+<form method="get" class="cc-card p-4 mb-5 flex flex-wrap gap-3 items-center">
+  <input type="text" name="q" value="{{ q }}" class="cc-input cc-input-sm flex-1 min-w-[240px]" placeholder="Search users by username, name, or email...">
+  <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm">Search</button>
+</form>
 
-<div class="portal-card">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Username</th>
-          <th>Email</th>
-          <th>Portal Role</th>
-          <th>Account State</th>
-          <th class="text-end">Role & Access Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in user_rows %}
+<!-- Users Table -->
+<div class="cc-table-wrap">
+  <table class="cc-table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Portal Role</th>
+        <th>Account State</th>
+        <th class="text-right">Role &amp; Access Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in user_rows %}
         {% with u=row.user %}
-        <tr>
-          <td class="fw-semibold">{{ u.username }}{% if u.id == request.user.id %} <span class="badge bg-info text-dark">You</span>{% endif %}</td>
-          <td class="small">{{ u.email|default:'--' }}</td>
-          <td>
-            <span class="badge {% if row.is_owner %}bg-primary{% elif row.is_manager %}bg-success{% else %}bg-light text-dark border{% endif %}">
-              {{ row.role_label }}
-            </span>
-          </td>
-          <td>
-            {% if u.is_active %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
-            {% else %}
-              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Inactive</span>
-            {% endif %}
-          </td>
-          <td class="text-end">
-            {% if row.is_owner %}
-              <span class="small text-muted"><i class="bi bi-lock me-1"></i>Protected Owner Account</span>
-            {% else %}
-              <div class="d-inline-flex gap-1">
-                {% if not row.is_manager %}
-                <form method="post" action="{% url 'management:user_management_action' %}" class="d-inline">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="grant_manager">
-                  <input type="hidden" name="user_id" value="{{ u.id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-success">Grant Manager</button>
-                </form>
-                {% else %}
-                <form method="post" action="{% url 'management:user_management_action' %}" class="d-inline">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="revoke_manager">
-                  <input type="hidden" name="user_id" value="{{ u.id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-warning">Revoke Manager</button>
-                </form>
-                {% endif %}
+          <tr>
+            <td class="font-bold text-ink text-xs sm:text-sm">
+              {{ u.username }}
+              {% if u.id == request.user.id %}<span class="cc-badge cc-badge-tech ml-1.5 text-[10px]">You</span>{% endif %}
+            </td>
+            <td class="text-xs text-muted">{{ u.email|default:'--' }}</td>
+            <td>
+              <span class="cc-badge text-[10px] {% if row.is_owner %}cc-badge-accent{% elif row.is_manager %}cc-badge-compatible{% else %}cc-badge-neutral{% endif %}">
+                {{ row.role_label }}
+              </span>
+            </td>
+            <td>
+              {% if u.is_active %}
+                <span class="cc-badge cc-badge-compatible text-[10px]">Active</span>
+              {% else %}
+                <span class="cc-badge cc-badge-incompatible text-[10px]">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              {% if row.is_owner %}
+                <span class="inline-flex items-center gap-1 text-xs text-muted">
+                  <i data-lucide="lock" class="w-3.5 h-3.5"></i><span>Protected Owner Account</span>
+                </span>
+              {% else %}
+                <div class="inline-flex items-center gap-1.5">
+                  {% if not row.is_manager %}
+                    <form method="post" action="{% url 'management:user_management_action' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="grant_manager">
+                      <input type="hidden" name="user_id" value="{{ u.id }}">
+                      <button type="submit" class="cc-btn cc-btn-success cc-btn-sm py-1 px-2.5 text-xs">Grant Manager</button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="{% url 'management:user_management_action' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="revoke_manager">
+                      <input type="hidden" name="user_id" value="{{ u.id }}">
+                      <button type="submit" class="cc-btn cc-btn-secondary cc-btn-sm py-1 px-2.5 text-xs text-amber-400">Revoke Manager</button>
+                    </form>
+                  {% endif %}
 
-                {% if u.is_active %}
-                <form method="post" action="{% url 'management:user_management_action' %}" class="d-inline">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="deactivate">
-                  <input type="hidden" name="user_id" value="{{ u.id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">Deactivate</button>
-                </form>
-                {% else %}
-                <form method="post" action="{% url 'management:user_management_action' %}" class="d-inline">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="activate">
-                  <input type="hidden" name="user_id" value="{{ u.id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-primary">Activate</button>
-                </form>
-                {% endif %}
-              </div>
-            {% endif %}
-          </td>
-        </tr>
+                  {% if u.is_active %}
+                    <form method="post" action="{% url 'management:user_management_action' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="deactivate">
+                      <input type="hidden" name="user_id" value="{{ u.id }}">
+                      <button type="submit" class="cc-btn cc-btn-danger cc-btn-sm py-1 px-2.5 text-xs">Deactivate</button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="{% url 'management:user_management_action' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="activate">
+                      <input type="hidden" name="user_id" value="{{ u.id }}">
+                      <button type="submit" class="cc-btn cc-btn-primary cc-btn-sm py-1 px-2.5 text-xs">Activate</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </td>
+          </tr>
         {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endblock %}

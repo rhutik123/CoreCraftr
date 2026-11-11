@@ -1,0 +1,23 @@
+{% if messages %}
+  <div class="space-y-2.5 mb-5" aria-live="polite">
+    {% for message in messages %}
+      <div class="cc-alert {% if 'error' in message.tags %}cc-alert-danger{% elif 'warning' in message.tags %}cc-alert-warning{% elif 'success' in message.tags %}cc-alert-success{% else %}cc-alert-info{% endif %}" role="alert">
+        <div class="flex items-start gap-2.5">
+          {% if 'error' in message.tags %}
+            <i data-lucide="octagon-alert" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          {% elif 'warning' in message.tags %}
+            <i data-lucide="triangle-alert" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          {% elif 'success' in message.tags %}
+            <i data-lucide="circle-check" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          {% else %}
+            <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          {% endif %}
+          <span class="font-medium leading-relaxed">{{ message }}</span>
+        </div>
+        <button type="button" data-dismiss-alert aria-label="Dismiss message" class="p-1 rounded-lg opacity-70 hover:opacity-100 transition-opacity cursor-pointer shrink-0">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

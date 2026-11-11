@@ -1,0 +1,14 @@
+<div class="inline-flex items-center rounded-xl border border-border bg-elevated p-0.5 text-xs" role="group" aria-label="Color theme preference">
+  <button type="button" data-theme-choice="dark" aria-pressed="false" title="Dark theme" class="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium transition-colors cursor-pointer text-muted hover:text-ink">
+    <i data-lucide="moon" class="w-3.5 h-3.5"></i>
+    <span class="{% if icon_only %}hidden{% else %}hidden xl:inline{% endif %}">Dark</span>
+  </button>
+  <button type="button" data-theme-choice="light" aria-pressed="false" title="Light theme" class="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium transition-colors cursor-pointer text-muted hover:text-ink">
+    <i data-lucide="sun" class="w-3.5 h-3.5"></i>
+    <span class="{% if icon_only %}hidden{% else %}hidden xl:inline{% endif %}">Light</span>
+  </button>
+  <button type="button" data-theme-choice="system" aria-pressed="false" title="Follow system appearance" class="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium transition-colors cursor-pointer text-muted hover:text-ink">
+    <i data-lucide="laptop" class="w-3.5 h-3.5"></i>
+    <span class="{% if icon_only %}hidden{% else %}hidden xl:inline{% endif %}">System</span>
+  </button>
+</div>

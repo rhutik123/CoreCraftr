@@ -3,16 +3,21 @@
 {% block title %}Page Not Found (404) | CoreCraftr{% endblock %}
 
 {% block content %}
-<div class="hh-card p-5 text-center my-4">
-  <i class="bi bi-compass fs-1 text-info d-block mb-3"></i>
-  <h1 class="h3 fw-bold mb-2">404 — Page Not Found</h1>
-  <p class="text-muted mb-4">
-    The hardware listing or build page you requested could not be found on CoreCraftr.
-  </p>
-  <div class="d-flex flex-wrap justify-content-center gap-2">
-    <a href="{% url 'home' %}" class="btn btn-primary btn-sm">Back to Homepage</a>
-    <a href="{% url 'store' %}" class="btn btn-outline-secondary btn-sm">Browse Hardware</a>
-    <a href="{% url 'pc_builder' %}" class="btn btn-info btn-sm fw-semibold">Open PC Builder</a>
+<div class="mx-auto max-w-lg py-10">
+  <div class="cc-card p-8 text-center">
+    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-tech/15 border border-tech/35 text-tech-ink">
+      <i data-lucide="compass" class="w-7 h-7"></i>
+    </div>
+    <span class="cc-badge cc-badge-tech mb-3">HTTP 404</span>
+    <h1 class="text-2xl font-bold text-ink mb-2">404 &mdash; Page Not Found</h1>
+    <p class="text-sm text-muted mb-6">
+      The hardware listing or build page you requested could not be found on CoreCraftr.
+    </p>
+    <div class="flex flex-wrap justify-center gap-2.5">
+      <a href="{% url 'home' %}" class="cc-btn cc-btn-primary cc-btn-sm">Back to Homepage</a>
+      <a href="{% url 'store' %}" class="cc-btn cc-btn-secondary cc-btn-sm">Browse Hardware</a>
+      <a href="{% url 'pc_builder' %}" class="cc-btn cc-btn-tech cc-btn-sm">Open PC Builder</a>
+    </div>
   </div>
 </div>
 {% endblock %}
