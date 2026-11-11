@@ -1,0 +1,237 @@
+{% extends "management/base_portal.html" %}
+
+{% block portal_title %}Dashboard{% endblock %}
+{% block page_heading %}Operations Dashboard{% endblock %}
+{% block page_subheading %}Live database snapshot of CoreCraftr hardware products, stock health, and activity{% endblock %}
+
+{% block portal_content %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Published SKUs</div>
+      <div class="portal-kpi-value text-success">{{ metrics.published_count }}</div>
+      <div class="small text-muted mt-1">{{ metrics.total_skus }} total products</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Active Categories</div>
+      <div class="portal-kpi-value">{{ metrics.active_categories_count }}</div>
+      <div class="small text-muted mt-1">of {{ metrics.total_categories_count }} categories</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Low Stock</div>
+      <div class="portal-kpi-value text-warning">{{ metrics.low_stock_count }}</div>
+      <div class="small text-muted mt-1"><a href="{% url 'management:inventory_list' %}?state=low">Inspect low stock</a></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Out of Stock</div>
+      <div class="portal-kpi-value text-danger">{{ metrics.out_of_stock_count }}</div>
+      <div class="small text-muted mt-1"><a href="{% url 'management:inventory_list' %}?state=out">Inspect out of stock</a></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Drafts / Archived</div>
+      <div class="portal-kpi-value">{{ metrics.draft_count }} / {{ metrics.archived_count }}</div>
+      <div class="small text-muted mt-1">{{ pending_ai_drafts }} pending AI draft(s)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="portal-kpi-card">
+      <div class="small text-muted">Verified Cost Value</div>
+      {% if metrics.valued_sku_count > 0 %}
+      <div class="portal-kpi-value fs-5">Rs. {{ metrics.cost_valuation_total|floatformat:2 }}</div>
+      <div class="small text-muted mt-1">{{ metrics.valued_sku_count }}/{{ metrics.non_archived_count }} SKUs with cost</div>
+      {% else %}
+      <div class="portal-kpi-value fs-6 text-muted">No cost data</div>
+      <div class="small text-muted mt-1">Set cost_price on SKUs</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-4">
+  <a href="{% url 'management:product_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add Product
+  </a>
+  <a href="{% url 'management:inventory_list' %}" class="btn btn-outline-dark">
+    <i class="bi bi-sliders me-1"></i>Adjust Stock
+  </a>
+  <a href="{% url 'management:import_export' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-upload me-1"></i>Bulk CSV Import / Export
+  </a>
+  <a href="{% url 'management:reports' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-graph-up me-1"></i>View Valuation Report
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="portal-card h-100">
+      <div class="portal-card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-exclamation-triangle text-warning me-2"></i>Stock Attention Needed</span>
+        <a href="{% url 'management:inventory_list' %}" class="small text-decoration-none">All Stock</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>SKU</th>
+              <th>Product</th>
+              <th>Available</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in metrics.out_of_stock_items|slice:":6" %}
+            <tr>
+              <td><code>{{ p.sku }}</code></td>
+              <td>{{ p.name|truncatechars:38 }}</td>
+              <td><span class="badge bg-danger">Out of Stock (0)</span></td>
+              <td><a href="{% url 'management:inventory_list' %}?q={{ p.sku }}" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">Restock</a></td>
+            </tr>
+            {% endfor %}
+            {% for p in metrics.low_stock_items|slice:":6" %}
+            <tr>
+              <td><code>{{ p.sku }}</code></td>
+              <td>{{ p.name|truncatechars:38 }}</td>
+              <td><span class="badge bg-warning text-dark">Low ({{ p.inventory.available_quantity }})</span></td>
+              <td><a href="{% url 'management:inventory_list' %}?q={{ p.sku }}" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">Adjust</a></td>
+            </tr>
+            {% endfor %}
+            {% if not metrics.out_of_stock_items and not metrics.low_stock_items %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">All published products are above low-stock thresholds.</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="portal-card h-100">
+      <div class="portal-card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history text-primary me-2"></i>Recent Stock Movements</span>
+        <a href="{% url 'management:stock_history' %}" class="small text-decoration-none">Full History</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>SKU</th>
+              <th>Change</th>
+              <th>Reason</th>
+              <th>By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mv in recent_movements %}
+            <tr>
+              <td><code>{{ mv.product.sku }}</code></td>
+              <td>
+                <span class="badge {% if mv.change_amount >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                  {% if mv.change_amount >= 0 %}+{% endif %}{{ mv.change_amount }} -> {{ mv.new_quantity }}
+                </span>
+              </td>
+              <td class="small">{{ mv.get_reason_display }}</td>
+              <td class="small text-muted">{{ mv.performed_by.username|default:'System' }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">No stock movements logged yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="portal-card">
+      <div class="portal-card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box-seam me-2"></i>Recently Updated Products</span>
+        <a href="{% url 'management:product_list' %}" class="small text-decoration-none">Manage Catalog</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Stock</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in recent_products %}
+            <tr>
+              <td><code>{{ p.sku }}</code></td>
+              <td class="fw-semibold">{{ p.name }}</td>
+              <td>{{ p.category.name }}</td>
+              <td>Rs. {{ p.price|floatformat:2 }}</td>
+              <td>
+                <span class="badge {% if p.status == 'published' %}bg-success{% elif p.status == 'draft' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                  {{ p.get_status_display }}
+                </span>
+              </td>
+              <td>{{ p.stock_quantity }}</td>
+              <td class="text-end">
+                <a href="{% url 'management:product_edit' p.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No products found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if is_portal_owner %}
+  <div class="col-12">
+    <div class="portal-card">
+      <div class="portal-card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-shield-check text-primary me-2"></i>Owner Recent Audit Activity</span>
+        <a href="{% url 'management:audit_log' %}" class="small text-decoration-none">View Full Audit Log</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Actor</th>
+              <th>Action</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_audit %}
+            <tr>
+              <td class="small text-muted">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+              <td class="small fw-semibold">{{ log.actor_username }} ({{ log.actor_role }})</td>
+              <td><code>{{ log.action }}</code></td>
+              <td class="small">{{ log.summary }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-3">No audit entries yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

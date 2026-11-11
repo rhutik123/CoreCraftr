@@ -112,6 +112,16 @@ class Customer(models.Model):
 class Product(models.Model):
     """Hardware product in the e-commerce and PC Builder catalogue."""
 
+    STATUS_DRAFT = 'draft'
+    STATUS_PUBLISHED = 'published'
+    STATUS_ARCHIVED = 'archived'
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_PUBLISHED, 'Published'),
+        (STATUS_ARCHIVED, 'Archived'),
+    ]
+
     LEGACY_CATEGORIES = (
         ('Processors', 'Processors'),
         ('Motherboards', 'Motherboards'),
@@ -125,6 +135,7 @@ class Product(models.Model):
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(max_length=280, unique=True, null=True, blank=True)
     sku = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    model_number = models.CharField(max_length=120, blank=True, default='', db_index=True)
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
@@ -152,6 +163,14 @@ class Product(models.Model):
         blank=True,
         validators=[MinValueValidator(Decimal('0.00'))],
     )
+    cost_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Optional unit cost price used for verified inventory valuation.',
+    )
     digital = models.BooleanField(default=False, null=True, blank=True)
     image = models.ImageField(upload_to='products/', null=True, blank=True)
     static_image_path = models.CharField(
@@ -162,6 +181,7 @@ class Product(models.Model):
     )
     short_description = models.CharField(max_length=300, blank=True, default='')
     description = models.TextField(max_length=4000, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='published', db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
     is_featured = models.BooleanField(default=False, db_index=True)
     is_trending = models.BooleanField(default=False, db_index=True)
@@ -185,18 +205,65 @@ class Product(models.Model):
     )
     rating_count = models.PositiveIntegerField(default=0)
     warranty_months = models.PositiveIntegerField(default=36)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_products',
+    )
+    last_edited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='edited_products',
+    )
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._initial_status = self.status
+        self._initial_is_active = self.is_active
 
     class Meta:
         ordering = ['name', 'id']
         indexes = [
             models.Index(fields=['is_active', 'category']),
             models.Index(fields=['is_active', 'brand']),
+            models.Index(fields=['status']),
             models.Index(fields=['price']),
         ]
 
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            update_fields = set(update_fields)
+
+        if self._state.adding:
+            # Explicit status overrides default is_active unless caller passed is_active=False with default status
+            if not self.is_active and self.status == 'published':
+                self.status = 'archived'
+            else:
+                self.is_active = self.status == 'published'
+        else:
+            status_changed = self.status != self._initial_status
+            active_changed = self.is_active != self._initial_is_active
+            if status_changed:
+                self.is_active = self.status == 'published'
+                if update_fields is not None:
+                    update_fields.add('is_active')
+            elif active_changed:
+                self.status = 'published' if self.is_active else (
+                    self.status if self.status in ('draft', 'archived') else 'archived'
+                )
+                if update_fields is not None:
+                    update_fields.add('status')
+
+        if update_fields is not None:
+            kwargs['update_fields'] = list(update_fields)
+
         if not self.slug:
             base_slug = slugify(self.name)[:240] or 'product'
             candidate = base_slug
@@ -209,6 +276,8 @@ class Product(models.Model):
             prefix = (self.category.component_slot[:3].upper() if self.category else 'HW')
             self.sku = f'{prefix}-{uuid.uuid4().hex[:8].upper()}'
         super().save(*args, **kwargs)
+        self._initial_status = self.status
+        self._initial_is_active = self.is_active
 
     def __str__(self):
         return self.name
@@ -216,9 +285,26 @@ class Product(models.Model):
     def get_absolute_url(self):
         return reverse('detail', kwargs={'pk': self.pk})
 
+    def _gallery_image_url_if_exists(self, gallery_img) -> str | None:
+        if gallery_img.image and getattr(gallery_img.image, 'name', ''):
+            image_name = gallery_img.image.name.lstrip('/')
+            if os.path.exists(os.path.join(settings.MEDIA_ROOT, image_name)):
+                return gallery_img.image.url
+        if gallery_img.static_path:
+            clean_path = gallery_img.static_path.lstrip('/')
+            if os.path.exists(os.path.join(settings.BASE_DIR, 'static', clean_path)):
+                return f'{settings.STATIC_URL}{clean_path}'
+        return None
+
     @property
     def imageURL(self):
-        # 1. Uploaded media file if present on disk
+        # 1. Explicit primary gallery image when present on disk
+        if self.pk:
+            for g in self.gallery_images.filter(is_primary=True)[:2]:
+                resolved = self._gallery_image_url_if_exists(g)
+                if resolved:
+                    return resolved
+        # 2. Uploaded main media file if present on disk
         if self.image and getattr(self.image, 'name', ''):
             image_name = self.image.name.lstrip('/')
             media_candidate = os.path.join(settings.MEDIA_ROOT, image_name)
@@ -228,14 +314,37 @@ class Product(models.Model):
             static_legacy = os.path.join(settings.BASE_DIR, 'static', 'images', os.path.basename(image_name))
             if os.path.exists(static_legacy):
                 return f'{settings.STATIC_URL}images/{os.path.basename(image_name)}'
-        # 2. Explicit static path
+        # 3. Explicit static path
         if self.static_image_path:
             clean_path = self.static_image_path.lstrip('/')
             static_candidate = os.path.join(settings.BASE_DIR, 'static', clean_path)
             if os.path.exists(static_candidate):
                 return f'{settings.STATIC_URL}{clean_path}'
-        # 3. Category fallback or generic placeholder
+        # 4. Any valid secondary gallery image
+        if self.pk:
+            for g in self.gallery_images.all()[:3]:
+                resolved = self._gallery_image_url_if_exists(g)
+                if resolved:
+                    return resolved
+        # 5. Category fallback or generic placeholder
         return f'{settings.STATIC_URL}images/placeholder.png'
+
+    @property
+    def availability_status(self) -> str:
+        if self.status == 'draft':
+            return 'Draft'
+        if self.status == 'archived' or not self.is_active:
+            return 'Archived'
+        avail = self.stock_quantity
+        if avail <= 0:
+            return 'Out of Stock'
+        try:
+            threshold = self.inventory.low_stock_threshold
+        except Inventory.DoesNotExist:
+            threshold = 3
+        if avail <= threshold:
+            return 'Low Stock'
+        return 'In Stock'
 
     @property
     def discount_percent(self):
@@ -361,6 +470,7 @@ class HardwareSpecProfile(models.Model):
     supported_memory_types = models.JSONField(default=list, blank=True)
     max_memory_gb = models.PositiveIntegerField(null=True, blank=True)
     max_memory_speed_mhz = models.PositiveIntegerField(null=True, blank=True)
+    cache_info = models.CharField(max_length=80, blank=True, default='')
     pcie_version = models.CharField(max_length=20, blank=True, default='')
 
     # Motherboard Specific
@@ -394,6 +504,7 @@ class HardwareSpecProfile(models.Model):
     gpu_slot_width = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
     recommended_psu_watts = models.PositiveIntegerField(null=True, blank=True)
     required_power_connectors = models.JSONField(default=dict, blank=True)
+    display_outputs = models.CharField(max_length=160, blank=True, default='')
 
     # Storage Specific
     storage_type = models.CharField(max_length=40, blank=True, default='')  # NVMe M.2, SATA M.2, SATA 2.5" SSD, SATA 3.5" HDD
@@ -408,6 +519,7 @@ class HardwareSpecProfile(models.Model):
     efficiency_rating = models.CharField(max_length=40, blank=True, default='')
     modularity = models.CharField(max_length=30, blank=True, default='')
     psu_form_factor = models.CharField(max_length=20, blank=True, default='')  # ATX, SFX
+    atx_version = models.CharField(max_length=40, blank=True, default='')
     psu_length_mm = models.PositiveIntegerField(null=True, blank=True)
     psu_connectors = models.JSONField(default=dict, blank=True)
 

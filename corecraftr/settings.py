@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'store.apps.StoreConfig',
     'pc_builder.apps.PcBuilderConfig',
     'ai_engine.apps.AiEngineConfig',
+    'management.apps.ManagementConfig',
 ]
 
 MIDDLEWARE = [
@@ -99,6 +100,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'store.context_processors.global_store_context',
+                'management.context_processors.portal_context',
             ],
         },
     },
@@ -232,5 +234,16 @@ if AI_API_KEY.startswith('replace-with-'):
     AI_API_KEY = ''
 AI_MODEL = os.environ.get('AI_MODEL', 'gpt-4o-mini').strip()
 AI_TIMEOUT_SECONDS = int(os.environ.get('AI_TIMEOUT_SECONDS', '15'))
+
+# Optional Web Search & AI Product Spec Research settings
+AI_SEARCH_PROVIDER = os.environ.get('AI_SEARCH_PROVIDER', 'none').strip().lower()
+AI_SEARCH_API_KEY = os.environ.get('AI_SEARCH_API_KEY', '').strip()
+if AI_SEARCH_API_KEY.startswith('replace-with-'):
+    AI_SEARCH_API_KEY = ''
+AI_SEARCH_ENGINE_ID = os.environ.get('AI_SEARCH_ENGINE_ID', '').strip()
+if AI_SEARCH_ENGINE_ID.startswith('replace-with-'):
+    AI_SEARCH_ENGINE_ID = ''
+AI_RESEARCH_RATE_LIMIT_PER_HOUR = int(os.environ.get('AI_RESEARCH_RATE_LIMIT_PER_HOUR', '20'))
+PRODUCT_IMAGE_MAX_BYTES = int(os.environ.get('PRODUCT_IMAGE_MAX_BYTES', str(5 * 1024 * 1024)))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -1,7 +1,7 @@
 # PROJECT PROGRESS — CoreCraftr (Computer Hardware E-Commerce + Intelligent PC Builder)
 
 Repository: `CoreCraftr` (`https://github.com/rhutik123/CoreCraftr`, migrated from `https://github.com/rhutik123/Ecommerce-website`)  
-Active Branch: `feature/corecraftr-branding` (branched from `feature/pc-builder-upgrade`; original `master` preserved)  
+Active Branch: `feature/inventory-management-portal` (branched from `master` at `bdd14ca`)  
 Tagline: *Build Smarter. Build Better.*
 
 ---
@@ -152,3 +152,28 @@ Tagline: *Build Smarter. Build Better.*
 - PostgreSQL target configuration was verified at settings/env level only; local verification ran on SQLite fallback because PostgreSQL credentials are not configured in the local environment.
 - Live OpenAI / Gemini API calls remain untested in the absence of live API keys (verified via deterministic fallback + mocked `AIProviderClient` tests).
 - Historical upstream commits (`master` `d44f34f`/`fed3650` and `db.sqlite3` up through `767fb3f`) remain unchanged on remote because force-push / history rewriting was strictly avoided; exposed historical credentials must still be rotated as documented in `SETUP_GUIDE.md`.
+
+---
+
+## Phase 10 — Owner & Inventory Management Portal (`/management/`)
+**Status:** Completed
+
+### Completed Tasks
+- **Dedicated Staff App & RBAC (`management/`)**: Implemented modular `management` app reusing `store`, `pc_builder`, and `ai_engine`, configured via `corecraftr/settings.py`, `corecraftr/urls.py`, and `management/context_processors.py` (showing `"Management Portal"` strictly to authorized staff in [templates/base.html](templates/base.html) and adding multi-image thumbnail switching on `store/templates/store/detail.html`).
+- **Role-Based Permissions (`management/permissions.py`, `management/apps.py`)**: Synced `'Inventory Manager'` Django Group automatically via `post_migrate`, isolated Manager accounts from `/management/users/`, `/management/audit/`, and `/admin/`, protected Owner (`is_superuser`) accounts including last-active-superuser guardrails, and enforced 403 (`templates/403.html`) / 401 responses for unauthorized access.
+- **Database Schema Updates (`store/migrations/0008_*`, `management/migrations/0001_initial.py`)**: Extended `Product` (`status` synced cleanly with `is_active`, `model_number`, `cost_price`, `created_by`, `last_edited_by`) and `HardwareSpecProfile` (`cache_info`, `display_outputs`, `atx_version`), and added `PortalPermission`, `StockMovement`, `PriceChangeLog`, append-only immutable `AuditLog`, `AIResearchDraft`, and `CSVImportBatch`.
+- **Product Studio, Media Security & Category Specs (`management/spec_schemas.py`, `management/services/{product_service,image_service}.py`)**: Added SKU uniqueness checks, non-blocking duplicate alerts, Draft/Published/Archived transitions preserving `OrderItem` history, Pillow binary verification (`JPEG`/`PNG`/`WEBP` <= 5 MB), primary/replace/delete gallery actions, dynamic category-specific compatibility spec forms, custom specs, and live preview.
+- **Schema-Constrained AI Specification Research (`ai_engine/services/spec_researcher.py`, `management/services/ai_spec_service.py`)**: Extended `AIProviderClient` with optional `WebSearchClient` (`AI_SEARCH_PROVIDER`) and `ProductSpecResearchService`: hourly cache rate limiting (429), SSRF URL guardrails, forbidden key stripping (`sku`, `price`, `cost_price`, `quantity`, `status`), manufacturer vs third-party source tagging, explicit conflict/missing field warnings without spec fabrication, mandatory human approval gate, and graceful manual fallback.
+- **Atomic Stock, Order Deductions, CSV Import/Export, Valuation & Audit (`management/services/{inventory_service,csv_service,user_service,audit_service}.py`, `store/services/order_service.py`)**: Row-locked `select_for_update()` stock adjustments with optimistic version tokens and negative/reserved guards, automatic `StockMovement(reason='order_deduction')` tracking in `create_order_from_cart`, verified cost valuation strictly over SKUs with `cost_price`, two-step preview -> confirm CSV import/export, Owner-only staff management, and immutable `AuditLog`.
+- **Automated Verification (`management/test_*.py`)**: Added 17 tests across `management/test_permissions_and_users.py`, `management/test_products_and_specs.py`, `management/test_inventory_csv_audit.py`, and `management/test_ai_spec_research.py`.
+
+### Tests Executed & Results
+- **Command**: `.\.venv\Scripts\pytest.exe -v` -> **63 passed in 14.52s (0 failed, 0 skipped)** (46 baseline tests + 17 management portal tests).
+- **Django Verification Checks**:
+  - `.\.venv\Scripts\python.exe manage.py check` -> `System check identified no issues (0 silenced).`
+  - `.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run` -> `No changes detected`
+  - `.\.venv\Scripts\python.exe manage.py collectstatic --noinput` -> `18 static files copied ... 172 unmodified.`
+
+### Known Limitations Preserved
+- Live web search (`AI_SEARCH_PROVIDER`) and live LLM calls (`AI_PROVIDER`) remain unconfigured in the local test environment; external API paths are covered by deterministic fallbacks and mocked unit tests.
+- Runtime verification ran on SQLite fallback; PostgreSQL migration execution remains targeted via `.env` configuration.
