@@ -1,6 +1,8 @@
 from decimal import Decimal
+import io
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -258,3 +260,18 @@ class InventoryCSVAuditTestCase(TestCase):
             AuditLog.objects.filter(pk=log.id).delete()
         with self.assertRaises(PermissionError):
             AuditLog.objects.filter(pk=log.id).update(summary='tampered')
+
+    def test_seed_portal_demo_is_idempotent_and_populates_portal_metrics(self):
+        out = io.StringIO()
+        call_command('seed_portal_demo', '--demo-password', 'TestDemoPass!99', stdout=out)
+        first_total = Product.objects.count()
+        first_orders = Order.objects.filter(order_number='ORD-DEMO-1001').count()
+        self.assertGreaterEqual(first_total, 77)
+        self.assertEqual(first_orders, 1)
+        self.assertTrue(Product.objects.filter(sku='DEMO-DRAFT-9600X', status=Product.STATUS_DRAFT, is_active=False).exists())
+        self.assertTrue(Product.objects.filter(sku='DEMO-ARCH-RTX3060', status=Product.STATUS_ARCHIVED, is_active=False).exists())
+
+        # Re-run to verify idempotency (no duplicate products/orders/movements)
+        call_command('seed_portal_demo', '--demo-password', 'TestDemoPass!99', stdout=out)
+        self.assertEqual(Product.objects.count(), first_total)
+        self.assertEqual(Order.objects.filter(order_number='ORD-DEMO-1001').count(), 1)

@@ -85,9 +85,11 @@ Run migrations and populate the hardware catalogue (13 categories, verified spec
 ```powershell
 python manage.py migrate
 python manage.py seed_hardware_catalog
+# Optional: seed additional Owner & Inventory Portal demo data (draft/archived/low-stock SKUs, movements, sample order, demo manager/customer):
+python manage.py seed_portal_demo
 ```
 
-`seed_hardware_catalog` is **idempotent** — running it multiple times safely upserts curated SKUs (`is_demo_data=True`), enriches legacy AM4 processors without deleting existing database rows, and refreshes `ChipsetCPUSupport` entries.
+Both `seed_hardware_catalog` and `seed_portal_demo` are **idempotent** — running them multiple times safely upserts curated SKUs (`is_demo_data=True`), enriches legacy AM4 processors without deleting existing database rows, and refreshes `ChipsetCPUSupport` entries without duplicating sample orders or stock ledger rows.
 
 Create an initial Store Owner (superuser) for both the Owner & Inventory Management Portal (`/management/`) and CoreCraftr Django Admin (`/admin/`):
 ```powershell
