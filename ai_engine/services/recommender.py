@@ -14,9 +14,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 import json
 import logging
+import re
 import urllib.error
 import urllib.request
 from django.conf import settings
+from management.spec_schemas import normalize_socket
 from store.models import Product
 from pc_builder.services.alternatives import SmartAlternativesService, slot_to_category_slot
 from pc_builder.services.compatibility import (
@@ -157,10 +159,64 @@ class AIProviderClient:
         self.api_key = getattr(settings, 'AI_API_KEY', '')
         self.model = getattr(settings, 'AI_MODEL', 'gpt-4o-mini')
         self.timeout = getattr(settings, 'AI_TIMEOUT_SECONDS', 15)
+        self.enable_google_search = False
+        self.last_error = ''
+        self.last_grounding_sources: list[dict] = []
 
     @property
     def is_configured(self) -> bool:
         return self.provider in ('openai', 'gemini') and bool(self.api_key)
+
+    def _resolve_model(self) -> str:
+        raw = (self.model or '').strip()
+        lowered = raw.lower()
+        if self.provider == 'gemini':
+            if not raw or lowered.startswith(('gpt-', 'o1', 'o3', 'o4', 'chatgpt')):
+                return 'gemini-3.8-flash'
+            return raw
+        if self.provider == 'openai':
+            if not raw or lowered.startswith('gemini'):
+                return 'gpt-4o-mini'
+            return raw
+        return raw
+
+    @staticmethod
+    def _extract_json_object(raw_text: str) -> dict | None:
+        text = (raw_text or '').strip()
+        if not text:
+            return None
+        if text.startswith('```'):
+            text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.IGNORECASE)
+            text = re.sub(r'\s*```$', '', text)
+            text = text.strip()
+        try:
+            parsed = json.loads(text)
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end > start:
+                parsed = json.loads(text[start:end + 1])
+                return parsed if isinstance(parsed, dict) else None
+            raise
+
+    @staticmethod
+    def _sanitize_error(exc: Exception) -> str:
+        msg = str(exc)
+        if isinstance(exc, urllib.error.HTTPError):
+            detail = ''
+            try:
+                body = exc.read().decode('utf-8', errors='replace')
+                parsed = json.loads(body)
+                if isinstance(parsed, dict):
+                    err_obj = parsed.get('error')
+                    if isinstance(err_obj, dict) and err_obj.get('message'):
+                        detail = str(err_obj['message'])[:200]
+            except Exception:
+                detail = ''
+            msg = f'HTTP {exc.code}: {detail}' if detail else f'HTTP {exc.code} {exc.reason}'
+        msg = re.sub(r'([?&]key=)[^&\s]+', r'\1***', msg)
+        return msg[:240]
 
     def request_structured_build(
         self,
@@ -193,6 +249,8 @@ class AIProviderClient:
 
     def send_json_prompt(self, system_prompt: str, user_prompt: str) -> dict | None:
         """Send a structured JSON prompt to the configured AI provider with safe error handling."""
+        self.last_error = ''
+        self.last_grounding_sources = []
         if not self.is_configured:
             return None
 
@@ -206,16 +264,17 @@ class AIProviderClient:
 
             if not raw_text:
                 return None
-            return json.loads(raw_text)
+            return self._extract_json_object(raw_text)
         except Exception as exc:
-            logger.warning('AI provider request failed (%s); falling back to deterministic engine.', exc)
+            self.last_error = self._sanitize_error(exc)
+            logger.warning('AI provider request failed (%s); falling back to deterministic engine.', self.last_error)
             return None
 
     def _call_openai(self, system_prompt: str, user_prompt: str) -> str:
         req = urllib.request.Request(
             'https://api.openai.com/v1/chat/completions',
             data=json.dumps({
-                'model': self.model or 'gpt-4o-mini',
+                'model': self._resolve_model(),
                 'response_format': {'type': 'json_object'},
                 'messages': [
                     {'role': 'system', 'content': system_prompt},
@@ -233,21 +292,50 @@ class AIProviderClient:
             payload = json.loads(resp.read().decode('utf-8'))
         return payload['choices'][0]['message']['content']
 
-    def _call_gemini(self, system_prompt: str, user_prompt: str) -> str:
-        model = self.model or 'gemini-2.0-flash'
+    def _post_gemini_payload(self, body: dict) -> dict:
+        model = self._resolve_model()
         url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}'
         req = urllib.request.Request(
             url,
-            data=json.dumps({
-                'contents': [{'parts': [{'text': f'{system_prompt}\n\n{user_prompt}'}]}],
-                'generationConfig': {'responseMimeType': 'application/json', 'temperature': 0.2},
-            }).encode('utf-8'),
+            data=json.dumps(body).encode('utf-8'),
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.loads(resp.read().decode('utf-8'))
-        return payload['candidates'][0]['content']['parts'][0]['text']
+            return json.loads(resp.read().decode('utf-8'))
+
+    def _call_gemini(self, system_prompt: str, user_prompt: str) -> str:
+        payload = None
+        if self.enable_google_search:
+            try:
+                payload = self._post_gemini_payload({
+                    'contents': [{'parts': [{'text': f'{system_prompt}\n\n{user_prompt}'}]}],
+                    'tools': [{'google_search': {}}],
+                    'generationConfig': {'temperature': 0.2},
+                })
+            except urllib.error.HTTPError:
+                payload = None
+
+        if payload is None:
+            payload = self._post_gemini_payload({
+                'contents': [{'parts': [{'text': f'{system_prompt}\n\n{user_prompt}'}]}],
+                'generationConfig': {'responseMimeType': 'application/json', 'temperature': 0.2},
+            })
+
+        candidate = (payload.get('candidates') or [{}])[0]
+        chunks = candidate.get('groundingMetadata', {}).get('groundingChunks', []) or []
+        grounding_sources = []
+        for chunk in chunks:
+            web = chunk.get('web') if isinstance(chunk, dict) else None
+            if isinstance(web, dict) and str(web.get('uri') or '').startswith(('http://', 'https://')):
+                grounding_sources.append({
+                    'title': str(web.get('title') or web['uri'])[:160],
+                    'url': str(web['uri'])[:500],
+                })
+        self.last_grounding_sources = grounding_sources
+
+        parts = candidate.get('content', {}).get('parts', []) or []
+        return '\n'.join(str(p.get('text', '')) for p in parts if isinstance(p, dict) and p.get('text'))
 
 
 class DeterministicBuildRecommender:
@@ -439,7 +527,7 @@ class DeterministicBuildRecommender:
 
             # Upgradeability bonus
             if req.upgradeability_preference == 'high' and spec:
-                if slot in ('cpu', 'motherboard') and spec.socket in ('AM5', 'LGA1700'):
+                if slot in ('cpu', 'motherboard') and normalize_socket(spec.socket) in ('AM5', 'LGA1700', 'LGA1851'):
                     score += 18.0
                 if slot == 'motherboard' and (spec.memory_slots or 0) >= 4:
                     score += 8.0
@@ -691,10 +779,20 @@ class BuildRecommendationOrchestrator:
             Product.objects.filter(is_active=True, category__is_pc_component=True, inventory__quantity__gt=0)
             .select_related('category', 'brand', 'spec_profile')
         )
+        extra_spec_fields = (
+            'cpu_family', 'chipset', 'form_factor', 'supported_form_factors',
+            'supported_cpu_families', 'supported_memory_types', 'memory_slots',
+            'max_memory_gb', 'ram_capacity_gb', 'ram_modules', 'ram_speed_mhz',
+            'gpu_length_mm', 'max_gpu_length_mm', 'cooler_type', 'supported_sockets',
+            'cooler_height_mm', 'radiator_size_mm', 'max_cooler_height_mm',
+            'supported_radiator_sizes_mm', 'max_tdp_rating_watts',
+            'includes_stock_cooler', 'integrated_graphics', 'recommended_psu_watts',
+            'storage_type', 'storage_form_factor', 'max_power_watts', 'benchmark_score',
+        )
         rows = []
         for p in products:
             spec = p.spec_profile_safe
-            rows.append({
+            entry = {
                 'id': p.id,
                 'name': p.name,
                 'slot': p.category.component_slot if p.category else 'other',
@@ -705,7 +803,13 @@ class BuildRecommendationOrchestrator:
                 'memory_type': spec.memory_type if spec else '',
                 'wattage': spec.wattage if spec else None,
                 'tdp_watts': spec.tdp_watts if spec else None,
-            })
+            }
+            if spec:
+                for fname in extra_spec_fields:
+                    val = getattr(spec, fname, None)
+                    if val not in (None, '', [], {}):
+                        entry[fname] = val
+            rows.append(entry)
         return rows
 
     @staticmethod

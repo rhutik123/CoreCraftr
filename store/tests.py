@@ -153,6 +153,64 @@ class StorefrontAndCatalogTests(TestCase):
         self.client.post(reverse('clear_compare'))
         self.assertEqual(self.client.session['compare_product_ids'], [])
 
+    def test_comparison_matrix_includes_hardware_spec_profile(self):
+        brand_intel = Brand.objects.create(name='Intel', slug='intel')
+        portal_cpu_1 = _create_product(
+            'Intel Core i7-14700K',
+            self.cat_cpu,
+            brand_intel,
+            '35000.00',
+            qty=5,
+            socket='LGA1700',
+            cpu_family='Intel 14th Gen',
+            cores=20,
+            threads=28,
+            base_clock_ghz='3.40',
+            boost_clock_ghz='5.60',
+            tdp_watts=125,
+            includes_stock_cooler=False,
+            supported_memory_types=['DDR4', 'DDR5'],
+        )
+        portal_cpu_2 = _create_product(
+            'Intel Core i5-14600K',
+            self.cat_cpu,
+            brand_intel,
+            '27500.00',
+            qty=4,
+            socket='LGA1700',
+            cpu_family='Intel 14th Gen',
+            cores=14,
+            threads=20,
+            base_clock_ghz='3.50',
+            boost_clock_ghz='5.30',
+            tdp_watts=125,
+            includes_stock_cooler=False,
+            supported_memory_types=['DDR4', 'DDR5'],
+        )
+        ProductSpecification.objects.create(
+            product=self.cpu_1,
+            spec_group='Architecture',
+            spec_key='Cores / Threads',
+            spec_value='6C / 12T',
+        )
+
+        # Seeded vs portal-created product fills custom spec keys from HardwareSpecProfile
+        mixed = build_comparison_matrix([self.cpu_1, portal_cpu_1])
+        rows_by_label = {r['label']: r for r in mixed['rows']}
+        self.assertEqual(rows_by_label['Socket']['values'], ['AM5', 'LGA1700'])
+        self.assertTrue(rows_by_label['Socket']['differs'])
+        self.assertEqual(rows_by_label['Cores / Threads']['values'], ['6C / 12T', '20 Cores / 28 Threads'])
+        self.assertEqual(rows_by_label['TDP']['values'], ['65 W', '125 W'])
+
+        # Two portal-created products with zero ProductSpecification rows compare via schema fields
+        portal_only = build_comparison_matrix([portal_cpu_1, portal_cpu_2])
+        portal_rows = {r['label']: r for r in portal_only['rows']}
+        self.assertEqual(portal_rows['Socket']['values'], ['LGA1700', 'LGA1700'])
+        self.assertFalse(portal_rows['Socket']['differs'])
+        self.assertEqual(portal_rows['Cores']['values'], ['20', '14'])
+        self.assertTrue(portal_rows['Cores']['differs'])
+        self.assertEqual(portal_rows['Includes Stock Cooler']['values'], ['No', 'No'])
+
 
 class CartCheckoutSecurityTests(TestCase):
     @classmethod

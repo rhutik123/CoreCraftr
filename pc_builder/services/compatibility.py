@@ -9,6 +9,7 @@ matches exist), never silent 'compatible'.
 
 from dataclasses import dataclass, field
 from typing import Optional
+from management.spec_schemas import normalize_cpu_family, normalize_socket
 from pc_builder.models import ChipsetCPUSupport, MotherboardCPUSupport
 
 
@@ -307,7 +308,9 @@ class CompatibilityEngine:
                 suggestion='Verify socket and CPU support list on the manufacturer website.',
             )
 
-        if cpu_spec.socket.strip().upper() != mobo_spec.socket.strip().upper():
+        norm_cpu_socket = normalize_socket(cpu_spec.socket)
+        norm_mobo_socket = normalize_socket(mobo_spec.socket)
+        if norm_cpu_socket != norm_mobo_socket:
             return CompatibilityIssue(
                 rule_code='CPU_MOBO_SOCKET_MISMATCH',
                 category='CPU & Motherboard',
@@ -356,11 +359,24 @@ class CompatibilityEngine:
 
         # Next check ChipsetCPUSupport matrix
         if mobo_spec.chipset and cpu_spec.cpu_family:
-            chipset_rule = ChipsetCPUSupport.objects.filter(
-                socket__iexact=cpu_spec.socket.strip(),
-                chipset__iexact=mobo_spec.chipset.strip(),
-                cpu_family__iexact=cpu_spec.cpu_family.strip(),
-            ).first()
+            norm_family = normalize_cpu_family(cpu_spec.cpu_family)
+            chipset_candidates = list(
+                ChipsetCPUSupport.objects.filter(
+                    socket__iexact=norm_cpu_socket,
+                    chipset__iexact=mobo_spec.chipset.strip(),
+                )
+            )
+            if not chipset_candidates and norm_cpu_socket != cpu_spec.socket.strip():
+                chipset_candidates = list(
+                    ChipsetCPUSupport.objects.filter(
+                        socket__iexact=cpu_spec.socket.strip(),
+                        chipset__iexact=mobo_spec.chipset.strip(),
+                    )
+                )
+            chipset_rule = next(
+                (r for r in chipset_candidates if normalize_cpu_family(r.cpu_family).lower() == norm_family.lower()),
+                None,
+            )
             if chipset_rule:
                 if chipset_rule.status == 'incompatible':
                     return CompatibilityIssue(
@@ -402,8 +418,9 @@ class CompatibilityEngine:
 
         # Next check motherboard supported_cpu_families JSON list
         if cpu_spec.cpu_family and mobo_spec.supported_cpu_families:
-            allowed_families = [f.strip().lower() for f in mobo_spec.supported_cpu_families]
-            if cpu_spec.cpu_family.strip().lower() not in allowed_families:
+            norm_family = normalize_cpu_family(cpu_spec.cpu_family).lower()
+            allowed_families = [normalize_cpu_family(f).lower() for f in mobo_spec.supported_cpu_families]
+            if norm_family not in allowed_families:
                 return CompatibilityIssue(
                     rule_code='CPU_MOBO_FAMILY_UNSUPPORTED',
                     category='CPU & Motherboard',
@@ -812,8 +829,8 @@ class CompatibilityEngine:
             ))
             return issues
 
-        supported = [s.strip().upper() for s in cooler_spec.supported_sockets]
-        if cpu_spec.socket.strip().upper() not in supported:
+        supported = [normalize_socket(s) for s in cooler_spec.supported_sockets]
+        if normalize_socket(cpu_spec.socket) not in supported:
             issues.append(CompatibilityIssue(
                 rule_code='CPU_COOLER_SOCKET_MISMATCH',
                 category='CPU & Cooler',

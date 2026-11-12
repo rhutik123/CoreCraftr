@@ -1,7 +1,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from store.models import Product
 from ai_engine.services.recommender import (
     AIProviderClient,
@@ -177,3 +177,13 @@ class AIRecommendationGroundingTests(TestCase):
         self.assertTrue(outcome.compatibility_report.is_build_valid_compatible)
         expected_total = sum(p.price for p in (cpu, mobo, ram, ssd, psu, case))
         self.assertEqual(outcome.total_price, expected_total)
+
+    @override_settings(AI_PROVIDER='gemini', AI_API_KEY='fake-gemini-key', AI_MODEL='gpt-4o-mini')
+    def test_gemini_cross_provider_model_fallback_and_fence_parsing(self):
+        client = AIProviderClient()
+        self.assertTrue(client.is_configured)
+        self.assertEqual(client._resolve_model(), 'gemini-3.8-flash')
+
+        fenced_json = '```json\n{"summary": "Ok", "selections": {}}\n```'
+        parsed = client._extract_json_object(fenced_json)
+        self.assertEqual(parsed, {'summary': 'Ok', 'selections': {}})

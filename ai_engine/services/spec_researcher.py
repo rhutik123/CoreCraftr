@@ -35,6 +35,8 @@ from management.spec_schemas import (
     coerce_spec_value,
     get_critical_field_names,
     get_spec_fields_for_slot,
+    normalize_cpu_family,
+    normalize_socket,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,30 +151,62 @@ def classify_source_origin(url: str, brand_name: str = '') -> str:
 
 
 class _HTMLTextExtractor(HTMLParser):
-    """Minimal safe HTML-to-text extractor skipping script/style tags."""
+    """Minimal safe HTML-to-text extractor skipping script/style tags while preserving spec row breaks."""
+
+    _BLOCK_TAGS = ('p', 'div', 'li', 'tr', 'br', 'h1', 'h2', 'h3', 'h4', 'dt', 'dd', 'section', 'article')
+    _CELL_TAGS = ('td', 'th')
 
     def __init__(self):
         super().__init__()
         self._skip_depth = 0
+        self._in_title = False
+        self.page_title = ''
+        self.meta_description = ''
         self._chunks = []
 
     def handle_starttag(self, tag, attrs):
-        if tag.lower() in ('script', 'style', 'noscript', 'svg'):
+        t = tag.lower()
+        if t in ('script', 'style', 'noscript', 'svg'):
             self._skip_depth += 1
+        elif t == 'title':
+            self._in_title = True
+        elif t == 'meta':
+            attr_map = {str(k).lower(): str(v or '') for k, v in attrs if k}
+            name_key = (attr_map.get('name') or attr_map.get('property') or '').lower()
+            if name_key in ('description', 'og:description') and attr_map.get('content') and not self.meta_description:
+                self.meta_description = attr_map['content'].strip()[:500]
+        elif t == 'br' and self._skip_depth == 0:
+            self._chunks.append('\n')
 
     def handle_endtag(self, tag):
-        if tag.lower() in ('script', 'style', 'noscript', 'svg') and self._skip_depth > 0:
+        t = tag.lower()
+        if t in ('script', 'style', 'noscript', 'svg') and self._skip_depth > 0:
             self._skip_depth -= 1
-        elif tag.lower() in ('p', 'div', 'li', 'tr', 'br', 'h1', 'h2', 'h3', 'h4', 'td', 'th'):
-            self._chunks.append(' ')
+        elif t == 'title':
+            self._in_title = False
+        elif t in self._CELL_TAGS and self._skip_depth == 0:
+            self._chunks.append(' | ')
+        elif t in self._BLOCK_TAGS and self._skip_depth == 0:
+            self._chunks.append('\n')
 
     def handle_data(self, data):
         if self._skip_depth == 0 and data:
+            if self._in_title and not self.page_title:
+                self.page_title = re.sub(r'\s+', ' ', data).strip()[:200]
             self._chunks.append(data)
 
     def get_text(self) -> str:
-        joined = ' '.join(self._chunks)
-        return re.sub(r'\s+', ' ', joined).strip()
+        raw = ''.join(self._chunks)
+        lines = []
+        for line in raw.splitlines():
+            cleaned = re.sub(r'[ \t]+', ' ', line).strip(' |\t')
+            if cleaned:
+                lines.append(cleaned)
+        if self.meta_description:
+            lines.insert(0, f'Page Summary | {self.meta_description}')
+        if self.page_title:
+            lines.insert(0, f'Page Title | {self.page_title}')
+        return '\n'.join(lines)
 
 
 class WebSearchClient:
@@ -183,6 +217,8 @@ class WebSearchClient:
         self.api_key = (getattr(settings, 'AI_SEARCH_API_KEY', '') or '').strip()
         self.engine_id = (getattr(settings, 'AI_SEARCH_ENGINE_ID', '') or '').strip()
         self.timeout = int(getattr(settings, 'AI_TIMEOUT_SECONDS', 15) or 15)
+        self.last_fetch_error = ''
+        self.last_page_title = ''
 
     @property
     def is_configured(self) -> bool:
@@ -190,26 +226,42 @@ class WebSearchClient:
             return bool(self.api_key and self.engine_id)
         return self.provider in ('tavily', 'serper') and bool(self.api_key)
 
-    def fetch_page_extract(self, url: str, max_chars: int = 3500) -> str:
+    def fetch_page_extract(self, url: str, max_chars: int = 12000) -> str:
         """Fetch visible text excerpt from a validated public product/datasheet URL with strict caps."""
+        self.last_fetch_error = ''
+        self.last_page_title = ''
         if not is_safe_public_http_url(url):
             return ''
         try:
             req = urllib.request.Request(
                 url,
-                headers={'User-Agent': 'CoreCraftrSpecResearch/1.0 (+https://corecraftr.local)'},
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (compatible; CoreCraftrSpecResearch/1.0)',
+                    'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
                 method='GET',
             )
-            with urllib.request.urlopen(req, timeout=min(self.timeout, 8)) as resp:
+            with urllib.request.urlopen(req, timeout=min(self.timeout, 10)) as resp:
                 ctype = (resp.headers.get('Content-Type') or '').lower()
-                if 'html' not in ctype and 'text/plain' not in ctype:
+                if ctype and 'html' not in ctype and 'text/plain' not in ctype:
+                    self.last_fetch_error = f'Unsupported content type ({ctype.split(";")[0]})'
                     return ''
                 raw_bytes = resp.read(512 * 1024)
-                decoded = raw_bytes.decode('utf-8', errors='replace')
+                charset = 'utf-8'
+                if 'charset=' in ctype:
+                    charset = ctype.split('charset=', 1)[1].split(';', 1)[0].strip() or 'utf-8'
+                decoded = raw_bytes.decode(charset, errors='replace')
             parser = _HTMLTextExtractor()
             parser.feed(decoded)
+            self.last_page_title = parser.page_title
             return parser.get_text()[:max_chars]
+        except urllib.error.HTTPError as exc:
+            self.last_fetch_error = f'HTTP {exc.code} {exc.reason}'.strip()
+            logger.debug('Reference page fetch HTTP error for %s: %s', url, self.last_fetch_error)
+            return ''
         except Exception as exc:
+            self.last_fetch_error = str(exc)[:120]
             logger.debug('Reference page fetch skipped for %s: %s', url, exc)
             return ''
 
@@ -318,6 +370,282 @@ class SpecResearchResult:
     raw_provider_status: str = ''
 
 
+_PERFORMANCE_TIER_ALIASES = {
+    'entry': 'entry',
+    'entry-level': 'entry',
+    'entry level': 'entry',
+    'budget': 'budget',
+    'value': 'budget',
+    'mid': 'midrange',
+    'midrange': 'midrange',
+    'mid-range': 'midrange',
+    'mainstream': 'midrange',
+    'upper_mid': 'upper_mid',
+    'upper-mid': 'upper_mid',
+    'upper mid': 'upper_mid',
+    'upper mid-range': 'upper_mid',
+    'high': 'high',
+    'high-end': 'high',
+    'high end': 'high',
+    'enthusiast': 'enthusiast',
+    'flagship': 'enthusiast',
+    'workstation': 'enthusiast',
+}
+
+
+def _strip_numeric_unit(raw_val, *, allow_decimal: bool):
+    if not isinstance(raw_val, str):
+        return raw_val
+    pattern = (
+        r'^[\s~≈]*([+-]?\d+(?:,\d{3})*(?:\.\d+)?)'
+        r'(?:\s*(?:w|watts?|ghz|mhz|mt/s|gb|tb|mm|mb/s|cm|hz|dpi|cfm|slots?|inches?|inch|"))?[\s]*$'
+    )
+    match = re.match(pattern, raw_val.strip(), flags=re.IGNORECASE)
+    if not match:
+        return raw_val
+    num_text = match.group(1).replace(',', '')
+    if not allow_decimal and '.' in num_text:
+        try:
+            flt = float(num_text)
+            if flt.is_integer():
+                return int(flt)
+        except ValueError:
+            return raw_val
+    return num_text
+
+
+def _split_list_tokens(raw_val) -> list[str]:
+    if isinstance(raw_val, list):
+        return [str(x).strip() for x in raw_val if str(x).strip()]
+    text = str(raw_val or '').strip()
+    if text.startswith('['):
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return [str(x).strip() for x in parsed if str(x).strip()]
+        except json.JSONDecodeError:
+            pass
+    return [part.strip() for part in text.split(',') if part.strip()]
+
+
+def _normalize_raw_spec_value(field_def: dict, raw_val, derived_extras: dict):
+    """Pre-normalize AI/extracted values (unit suffixes, family aliases, iGPU strings) before strict coercion."""
+    fname = field_def['name']
+    ftype = field_def['type']
+
+    if raw_val is None:
+        return None
+
+    if fname == 'integrated_graphics' and isinstance(raw_val, str):
+        lowered = raw_val.strip().lower()
+        if lowered in ('', 'unknown', 'n/a', 'na', 'unspecified', 'tbd', 'null'):
+            return raw_val
+        if lowered in ('true', '1', 'yes', 'y'):
+            return True
+        if lowered in ('false', '0', 'no', 'n', 'none') or lowered.startswith(('no ', 'none', 'discrete')):
+            return False
+        cleaned_igpu = re.sub(r'^(?:yes|true)\s*[-:(]?\s*|\)\s*$', '', raw_val.strip(), flags=re.IGNORECASE).strip()
+        if cleaned_igpu:
+            derived_extras.setdefault('igpu_name', cleaned_igpu[:80])
+        return True
+
+    if fname == 'socket' and isinstance(raw_val, str):
+        return normalize_socket(raw_val)
+
+    if fname == 'cpu_family' and isinstance(raw_val, str):
+        return normalize_cpu_family(raw_val)
+
+    if fname == 'supported_sockets':
+        return [normalize_socket(tok) for tok in _split_list_tokens(raw_val)]
+
+    if fname == 'supported_cpu_families':
+        return [normalize_cpu_family(tok) for tok in _split_list_tokens(raw_val)]
+
+    if fname == 'memory_type' and isinstance(raw_val, str):
+        mem = re.search(r'\b(LPDDR[45]X?|DDR[345])\b', raw_val, flags=re.IGNORECASE)
+        return mem.group(1).upper() if mem else raw_val
+
+    if fname == 'supported_memory_types':
+        if isinstance(raw_val, str) and re.search(r'\bDDR[345]\b', raw_val, flags=re.IGNORECASE):
+            tokens = sorted({m.upper() for m in re.findall(r'\bDDR[345]\b', raw_val, flags=re.IGNORECASE)})
+            if tokens:
+                return tokens
+        return _split_list_tokens(raw_val)
+
+    if fname == 'performance_tier' and isinstance(raw_val, str):
+        return _PERFORMANCE_TIER_ALIASES.get(raw_val.strip().lower(), raw_val.strip().lower())
+
+    if ftype == 'int':
+        return _strip_numeric_unit(raw_val, allow_decimal=False)
+
+    if ftype == 'decimal':
+        return _strip_numeric_unit(raw_val, allow_decimal=True)
+
+    if ftype == 'list_int':
+        tokens = _split_list_tokens(raw_val)
+        cleaned = []
+        for tok in tokens:
+            m = re.search(r'(\d{2,5})\s*(?:mhz|mt/s|mm)?', tok, flags=re.IGNORECASE)
+            cleaned.append(m.group(1) if m else tok)
+        return cleaned
+
+    return raw_val
+
+
+def _find_first_regex(text: str, patterns: list[str]) -> str:
+    for pat in patterns:
+        match = re.search(pat, text, flags=re.IGNORECASE | re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+    return ''
+
+
+def _extract_specs_from_text(
+    page_text: str,
+    *,
+    category_slot: str,
+    product_name: str,
+    reference_url: str,
+    page_title: str = '',
+) -> dict | None:
+    """
+    Deterministic pattern extraction from a fetched public datasheet/product HTML text
+    when AI_PROVIDER is unconfigured.
+    """
+    if not page_text:
+        return None
+
+    proposed: dict = {}
+    custom: dict = {}
+
+    if category_slot in ('cpu', 'motherboard'):
+        sock = _find_first_regex(page_text, [
+            r'(?:sockets?[ \t]+supported|cpu[ \t]+socket|socket)[ \t]*[:|][ \t]*([^\n|]{2,25})',
+            r'\b(FCLGA[ \t]*\d{4}|LGA[ \t]*\d{4}|AM[45]|s?TRX?\d)\b',
+        ])
+        if sock:
+            proposed['socket'] = normalize_socket(sock)
+
+    if category_slot == 'cpu':
+        fam = _find_first_regex(page_text, [
+            r'\b((?:Intel[ \t]+Core[ \t]+i\d[ \t]+)?\d{2}th[ \t]+Gen(?:[ \t]+Intel(?:[ \t]+Core)?)?)\b',
+            r'\b(Intel[ \t]+Core[ \t]+Ultra[ \t]+(?:Series[ \t]+2|200S?))\b',
+            r'\b((?:AMD[ \t]+)?Ryzen[ \t]+\d{4}[a-z]?(?:[ \t]+Series)?)\b',
+        ]) or _find_first_regex(product_name, [
+            r'\b(?:i\d[- ])?(1[234])\d{3}[A-Z]*\b',
+        ])
+        if fam:
+            if fam.isdigit() and len(fam) == 2:
+                fam = f'Intel {fam}th Gen'
+            proposed['cpu_family'] = normalize_cpu_family(fam)
+
+        patterns = {
+            'cores': [r'(?:total[ \t]+cores|#[ \t]*of[ \t]+cores|cores)[ \t]*[:|][ \t]*(\d{1,3})\b'],
+            'threads': [r'(?:total[ \t]+threads|#[ \t]*of[ \t]+threads|threads)[ \t]*[:|][ \t]*(\d{1,3})\b'],
+            'base_clock_ghz': [r'(?:processor[ \t]+base[ \t]+frequency|base[ \t]+clock|p-core[ \t]+base[ \t]+frequency)[ \t]*[:|][ \t]*(\d+(?:\.\d+)?)[ \t]*ghz'],
+            'boost_clock_ghz': [r'(?:max[ \t]+turbo[ \t]+frequency|max[ \t]+boost[ \t]+clock|boost[ \t]+clock)[ \t]*[:|][ \t]*(\d+(?:\.\d+)?)[ \t]*ghz'],
+            'tdp_watts': [r'(?:processor[ \t]+base[ \t]+power|default[ \t]+tdp|base[ \t]+power|tdp)[ \t]*[:|][ \t]*(\d{2,4})[ \t]*w\b'],
+            'max_power_watts': [r'(?:maximum[ \t]+turbo[ \t]+power|max[ \t]+turbo[ \t]+power|package[ \t]+power)[ \t]*[:|][ \t]*(\d{2,4})[ \t]*w\b'],
+            'max_memory_gb': [r'(?:max[ \t]+memory[ \t]+size|max(?:imum)?[ \t]+memory)[ \t]*[:|][ \t]*(\d{2,4})[ \t]*gb'],
+            'max_memory_speed_mhz': [r'DDR5(?:[ \t]*[-/])?[ \t]*(\d{4})[ \t]*(?:MHz|MT/s)'],
+            'cache_info': [r'(?:intel[ \t]+smart[ \t]+cache|l3[ \t]+cache|cache)[ \t]*[:|][ \t]*([^\n|]{3,60})'],
+        }
+        for key, pats in patterns.items():
+            val = _find_first_regex(page_text, pats)
+            if val:
+                proposed[key] = val
+
+        mem_line = _find_first_regex(page_text, [r'(?:memory[ \t]+types|system[ \t]+memory[ \t]+specification)[ \t]*[:|][ \t]*([^\n]+)']) or page_text
+        mem_tokens = sorted({m.upper() for m in re.findall(r'\bDDR[345]\b', mem_line, flags=re.IGNORECASE)})
+        if mem_tokens:
+            proposed['supported_memory_types'] = mem_tokens
+
+        igpu = _find_first_regex(page_text, [r'(?:processor[ \t]+graphics|integrated[ \t]+graphics|graphics[ \t]+model)[ \t]*[:|][ \t]*([^\n|]{2,80})'])
+        if igpu:
+            proposed['integrated_graphics'] = igpu
+
+    elif category_slot == 'motherboard':
+        for key, pats in {
+            'chipset': [r'(?:chipset)\s*[:|]\s*([A-Z]\d{3}[A-Z]?)\b'],
+            'form_factor': [r'(?:form\s+factor)\s*[:|]\s*(E-ATX|Micro-ATX|mATX|Mini-ITX|ATX)'],
+            'memory_type': [r'(?:memory\s+type|supported\s+memory)\s*[:|][^\n]*?\b(DDR[345])\b'],
+            'memory_slots': [r'(?:memory\s+slots|dimm\s+slots)\s*[:|]\s*(\d)\b', r'\b(\d)\s*x?\s*DIMM\b'],
+            'max_memory_gb': [r'(?:max\s+memory|max\.\s*memory)\s*[:|]\s*(\d{2,4})\s*gb'],
+        }.items():
+            val = _find_first_regex(page_text, pats)
+            if val:
+                proposed[key] = 'Micro-ATX' if key == 'form_factor' and val.lower() == 'matx' else val
+
+    elif category_slot == 'ram':
+        for key, pats in {
+            'memory_type': [r'\b(DDR[345])\b'],
+            'ram_capacity_gb': [r'(?:capacity|memory\s+size)\s*[:|]\s*(\d{1,3})\s*GB', r'\b(\d{1,3})\s*GB\s*\(\d\s*x\s*\d+\s*GB\)'],
+            'ram_speed_mhz': [r'(\d{4,5})\s*(?:MHz|MT/s)'],
+            'cas_latency': [r'\b(CL\d{2})\b'],
+        }.items():
+            val = _find_first_regex(page_text, pats)
+            if val:
+                proposed[key] = val
+
+    elif category_slot == 'gpu':
+        for key, pats in {
+            'vram_gb': [r'(?:memory\s+size|video\s+memory|vram)\s*[:|]\s*(\d{1,3})\s*GB'],
+            'vram_type': [r'\b(GDDR6X|GDDR6|GDDR7|HBM2E?|HBM3)\b'],
+            'gpu_length_mm': [r'(?:length|card\s+dimensions)[^\n]*?\b(\d{3})\s*mm\b'],
+            'tdp_watts': [r'(?:tdp|total\s+board\s+power|graphics\s+card\s+power)\s*[:|]\s*(\d{2,4})\s*w\b'],
+            'recommended_psu_watts': [r'(?:recommended\s+psu|recommended\s+system\s+power)\s*[:|]\s*(\d{3,4})\s*w\b'],
+        }.items():
+            val = _find_first_regex(page_text, pats)
+            if val:
+                proposed[key] = val
+
+    elif category_slot == 'psu':
+        for key, pats in {
+            'wattage': [r'(?:wattage|max\s+dc\s+output|continuous\s+power)\s*[:|]\s*(\d{3,4})\s*w\b', r'\b(\d{3,4})\s*W\b'],
+            'efficiency_rating': [r'(80\s*PLUS\s*(?:Titanium|Platinum|Gold|Silver|Bronze|White))'],
+            'psu_form_factor': [r'(?:form\s+factor)\s*[:|]\s*(SFX-L|SFX|ATX)'],
+            'psu_length_mm': [r'(?:length|dimensions)[^\n]*?\b(\d{3})\s*mm\b'],
+        }.items():
+            val = _find_first_regex(page_text, pats)
+            if val:
+                proposed[key] = val
+
+    elif category_slot == 'cooler':
+        if re.search(r'\b(liquid|aio|radiator)\b', page_text, flags=re.IGNORECASE):
+            proposed['cooler_type'] = 'Liquid AIO'
+            rad = _find_first_regex(page_text, [r'(?:radiator)[^\n]*?\b(120|240|280|360|420)\s*mm\b'])
+            if rad:
+                proposed['radiator_size_mm'] = rad
+        else:
+            proposed['cooler_type'] = 'Air'
+            h = _find_first_regex(page_text, [r'(?:height)[^\n]*?\b(\d{2,3})\s*mm\b'])
+            if h:
+                proposed['cooler_height_mm'] = h
+        socks = sorted({normalize_socket(s) for s in re.findall(r'\b(?:LGA\s*\d{4}|AM[45])\b', page_text, flags=re.IGNORECASE)})
+        if socks:
+            proposed['supported_sockets'] = socks
+
+    pcie = _find_first_regex(page_text, [r'\b(PCIe\s*(?:3\.0|4\.0|5\.0))\b'])
+    if pcie and category_slot in ('cpu', 'motherboard', 'gpu'):
+        proposed['pcie_version'] = pcie
+
+    if not proposed and not custom:
+        return None
+
+    return {
+        'match_status': 'exact',
+        'identified_name': product_name or page_title,
+        'proposed_specs': proposed,
+        'custom_specs': custom,
+        'sources': [{'url': reference_url, 'title': page_title or reference_url}],
+        'confidence': 'medium',
+        'summary_note': (
+            'Extracted structured specifications directly from the public reference URL '
+            '(LLM provider unconfigured). Review every field against the datasheet before approving.'
+        ),
+    }
+
+
 class ProductSpecResearchService:
     """
     Researches technical specifications for a hardware product against the category schema.
@@ -397,7 +725,49 @@ class ProductSpecResearchService:
                 raw_provider_status='invalid_reference_url',
             )
 
+        slot_fields = get_spec_fields_for_slot(category_slot)
+        allowed_fields = {f['name']: f for f in slot_fields + SHARED_METADATA_FIELDS}
+        critical_fields = get_critical_field_names(category_slot)
+
         if not self.ai_client.is_configured:
+            if clean_ref_url:
+                ref_text = self.search_client.fetch_page_extract(clean_ref_url)
+                extracted = _extract_specs_from_text(
+                    ref_text,
+                    category_slot=category_slot,
+                    product_name=clean_name,
+                    reference_url=clean_ref_url,
+                    page_title=self.search_client.last_page_title,
+                )
+                if extracted:
+                    return self._validate_ai_response(
+                        raw_response=extracted,
+                        product_name=clean_name,
+                        allowed_fields=allowed_fields,
+                        slot_fields=slot_fields,
+                        critical_fields=critical_fields,
+                        brand_name=brand_name,
+                        reference_url=clean_ref_url,
+                        search_snippets=[],
+                        confirmed_match=True,
+                    )
+                fetch_reason = (
+                    f'Reference page could not be read ({self.search_client.last_fetch_error}).'
+                    if self.search_client.last_fetch_error
+                    else 'Reference page did not expose static HTML specifications (it may require JavaScript rendering).'
+                )
+                return SpecResearchResult(
+                    available=False,
+                    status='unavailable',
+                    verification_status='unavailable',
+                    confidence='low',
+                    match_status='unavailable',
+                    summary_note=(
+                        f'AI provider is unconfigured (AI_PROVIDER=none) and {fetch_reason} '
+                        'Enter specifications manually below or configure AI_PROVIDER in .env.'
+                    ),
+                    raw_provider_status='provider_unconfigured',
+                )
             return SpecResearchResult(
                 available=False,
                 status='unavailable',
@@ -410,10 +780,6 @@ class ProductSpecResearchService:
                 ),
                 raw_provider_status='provider_unconfigured',
             )
-
-        slot_fields = get_spec_fields_for_slot(category_slot)
-        allowed_fields = {f['name']: f for f in slot_fields + SHARED_METADATA_FIELDS}
-        critical_fields = get_critical_field_names(category_slot)
 
         # Optional live web search context, prioritizing official manufacturer sources first
         search_snippets = []
@@ -446,7 +812,7 @@ class ProductSpecResearchService:
             '"conflicting_fields": [{"field": "field_name", "values": ["v1", "v2"], "note": "..."}], '
             '"confidence": "high"|"medium"|"low", '
             '"summary_note": "..."}. '
-            'Situation rules: '
+            'Formatting & situation rules: '
             '1) Exact product identified: set match_status="exact", fill verified proposed_specs from sources, put unverified fields in missing_fields. '
             '2) Possible typo or ambiguous query (for example "AMD Ryzan 5 7600X" unless user confirmed): set match_status="ambiguous", '
             'put likely candidate product name(s) in suggested_corrections with reason, and keep proposed_specs empty until confirmed. '
@@ -454,7 +820,10 @@ class ProductSpecResearchService:
             'NEVER invent, estimate, or guess unknown values. '
             'NEVER output commercial fields such as sku, price, cost_price, quantity, stock, id, or status. '
             'If sources disagree on a spec, DO NOT pick one silently; include it in conflicting_fields. '
-            'Use only field keys from the provided schema.'
+            'Use only field keys from allowed_schema. Prefer plain numbers for int/decimal fields (no units), '
+            'booleans true/false, canonical socket names (e.g. LGA1700, AM5, LGA1851), '
+            'canonical CPU families (e.g. Intel 14th Gen, Ryzen 7000, Ryzen 9000), and performance_tier in '
+            '{entry, budget, midrange, upper_mid, high, enthusiast}.'
         )
         schema_desc = [
             {
@@ -463,8 +832,9 @@ class ProductSpecResearchService:
                 'type': f['type'],
                 'unit': f.get('unit', ''),
                 'critical_for_compatibility': bool(f.get('compatibility_critical')),
+                **({'example': f['placeholder']} if f.get('placeholder') else {}),
             }
-            for f in slot_fields
+            for f in (slot_fields + SHARED_METADATA_FIELDS)
         ]
         user_payload = {
             'product_name': clean_name,
@@ -479,8 +849,37 @@ class ProductSpecResearchService:
             'web_search_results': search_snippets,
         }
 
-        raw_response = self.ai_client.send_json_prompt(system_prompt, json.dumps(user_payload))
+        use_gemini_search = (
+            self.ai_client.provider == 'gemini'
+            and not search_snippets
+            and not reference_page_extract
+        )
+        prev_search_flag = getattr(self.ai_client, 'enable_google_search', False)
+        self.ai_client.enable_google_search = use_gemini_search
+        try:
+            raw_response = self.ai_client.send_json_prompt(system_prompt, json.dumps(user_payload))
+        finally:
+            self.ai_client.enable_google_search = prev_search_flag
+
+        grounding_sources = getattr(self.ai_client, 'last_grounding_sources', None) or []
+        if grounding_sources:
+            seen = {s['url'] for s in search_snippets if isinstance(s, dict) and s.get('url')}
+            for gs in grounding_sources:
+                url = gs.get('url', '')
+                if url and is_safe_public_http_url(url) and url not in seen:
+                    seen.add(url)
+                    search_snippets.append({
+                        'url': url,
+                        'title': gs.get('title', url),
+                        'snippet': '',
+                    })
+            search_snippets.sort(
+                key=lambda item: 0 if classify_source_origin(item.get('url', ''), brand_name=brand_name) == 'manufacturer' else 1,
+            )
+
         if not isinstance(raw_response, dict):
+            err_detail = getattr(self.ai_client, 'last_error', '')
+            extra = f' ({err_detail})' if err_detail else ''
             return SpecResearchResult(
                 available=False,
                 status='unavailable',
@@ -488,7 +887,7 @@ class ProductSpecResearchService:
                 confidence='low',
                 match_status='unavailable',
                 summary_note=(
-                    'AI specification provider did not return a valid structured response. '
+                    f'AI specification provider did not return a valid structured response{extra}. '
                     'Please enter specifications manually.'
                 ),
                 raw_provider_status='provider_error_or_invalid_json',
@@ -581,6 +980,7 @@ class ProductSpecResearchService:
 
         # Validate schema-constrained proposed_specs
         raw_proposed = raw_response.get('proposed_specs')
+        derived_extras: dict = {}
         if isinstance(raw_proposed, dict):
             for raw_key, raw_val in raw_proposed.items():
                 key = str(raw_key).strip()
@@ -595,7 +995,8 @@ class ProductSpecResearchService:
                     continue
 
                 fdef = allowed_fields[key]
-                coerced, err = coerce_spec_value(fdef, raw_val)
+                normalized_val = _normalize_raw_spec_value(fdef, raw_val, derived_extras)
+                coerced, err = coerce_spec_value(fdef, normalized_val)
                 if err:
                     rejected_fields.append(f'Invalid value for {key}: {err}')
                     continue
@@ -610,6 +1011,16 @@ class ProductSpecResearchService:
                     proposed_specs[key] = str(coerced)
                 else:
                     proposed_specs[key] = coerced
+
+            for extra_key, extra_val in derived_extras.items():
+                if (
+                    extra_key in allowed_fields
+                    and extra_key not in proposed_specs
+                    and extra_key not in conflicted_field_names
+                ):
+                    extra_coerced, extra_err = coerce_spec_value(allowed_fields[extra_key], extra_val)
+                    if not extra_err and extra_coerced not in (None, '', [], {}):
+                        proposed_specs[extra_key] = extra_coerced
 
         # Validate optional custom display specs
         raw_custom = raw_response.get('custom_specs')
@@ -711,7 +1122,7 @@ class ProductSpecResearchService:
 
         slot_field_names = [f['name'] for f in slot_fields]
 
-        if raw_match_status == 'ambiguous' or (not confirmed_match and suggested_corrections):
+        if raw_match_status == 'ambiguous' or (not confirmed_match and suggested_corrections and not proposed_specs):
             if not suggested_corrections and identified_name:
                 suggested_corrections.append({
                     'name': identified_name,

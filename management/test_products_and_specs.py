@@ -237,3 +237,62 @@ class PortalProductsAndSpecsTestCase(TestCase):
         self.client.post(reverse('management:product_image_delete', args=[prod.id, imgs[1].id]))
         self.assertEqual(prod.gallery_images.count(), 1)
         self.assertTrue(prod.gallery_images.first().is_primary)
+
+    def test_manual_product_save_not_blocked_by_ai_input_and_verifies_complete_specs(self):
+        get_resp = self.client.get(reverse('management:product_create'))
+        self.assertEqual(get_resp.status_code, 200)
+        html = get_resp.content.decode('utf-8')
+        self.assertIn('id="id_ai_reference_url"', html)
+        self.assertIn('type="text"', html)
+        self.assertNotIn('<input type="url" id="id_ai_reference_url"', html)
+
+        # Complete manual Intel CPU entry (without running AI draft workflow) should save and mark spec_verified=True
+        resp = self.client.post(
+            reverse('management:product_create'),
+            data={
+                'name': 'Intel Core i7-14700K',
+                'sku': 'CPU-INT-14700K-MAN',
+                'model_number': 'BX8071514700K',
+                'category': self.cpu_cat.id,
+                'new_brand_name': 'Intel',
+                'status': Product.STATUS_PUBLISHED,
+                'price': '35999.00',
+                'warranty_months': '36',
+                'initial_quantity': '5',
+                'low_stock_threshold': '2',
+                'spec_socket': 'LGA1700',
+                'spec_cpu_family': 'Intel 14th Gen',
+                'spec_cores': '20',
+                'spec_threads': '28',
+                'spec_tdp_watts': '125',
+                'spec_max_power_watts': '253',
+                'spec_integrated_graphics': 'true',
+                'spec_includes_stock_cooler': 'false',
+                'spec_supported_memory_types': 'DDR4, DDR5',
+                'spec_performance_tier': 'high',
+            },
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        cpu = Product.objects.get(sku='CPU-INT-14700K-MAN')
+        self.assertTrue(cpu.spec_verified)
+        self.assertTrue(cpu.is_active)
+
+        # Minimal CPU entry missing critical compatibility fields stays spec_verified=False
+        resp_min = self.client.post(
+            reverse('management:product_create'),
+            data={
+                'name': 'Incomplete Mystery CPU',
+                'sku': 'CPU-INC-01',
+                'category': self.cpu_cat.id,
+                'status': Product.STATUS_DRAFT,
+                'price': '9999.00',
+                'warranty_months': '12',
+                'initial_quantity': '1',
+                'low_stock_threshold': '1',
+            },
+            follow=True,
+        )
+        self.assertEqual(resp_min.status_code, 200)
+        incomplete = Product.objects.get(sku='CPU-INC-01')
+        self.assertFalse(incomplete.spec_verified)

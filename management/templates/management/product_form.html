@@ -49,6 +49,17 @@
     >
       {% csrf_token %}
       <input type="hidden" id="id_ai_draft_id" name="ai_draft_id" value="">
+      {% if form.errors %}
+        <div class="cc-alert cc-alert-danger flex-col items-start gap-1 text-xs">
+          <div class="font-bold">Could not save product. Please fix the highlighted field errors below:</div>
+          {{ form.non_field_errors }}
+          {% for field in form %}
+            {% if field.errors %}
+              <div><strong>{{ field.label }}:</strong> {{ field.errors|striptags }}</div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
 
       <!-- 1. Product Identity & Integrated AI Research -->
       {% if not has_categories %}
@@ -86,22 +97,27 @@
           <div class="sm:col-span-4">
             <label for="id_model_number" class="cc-label">Model Number / MPN</label>
             {{ form.model_number }}
+            {{ form.model_number.errors }}
           </div>
           <div class="sm:col-span-4">
             <label for="id_warranty_months" class="cc-label">Warranty (Months)</label>
             {{ form.warranty_months }}
+            {{ form.warranty_months.errors }}
           </div>
           <div class="sm:col-span-4">
             <label for="id_category" class="cc-label">Category *</label>
             {{ form.category }}
+            {{ form.category.errors }}
           </div>
           <div class="sm:col-span-4">
             <label for="id_brand" class="cc-label">Brand</label>
             {{ form.brand }}
+            {{ form.brand.errors }}
           </div>
           <div class="sm:col-span-4">
             <label for="id_new_brand_name" class="cc-label">Or Create New Brand</label>
             {{ form.new_brand_name }}
+            {{ form.new_brand_name.errors }}
           </div>
 
           <!-- Integrated AI Specification Research Workflow -->
@@ -111,12 +127,12 @@
                 <i data-lucide="sparkles" class="w-4 h-4"></i>
                 <span>Online Specification Lookup (Optional Assistant)</span>
               </div>
-              <span class="text-[11px] text-muted">Prioritizes official manufacturer datasheets &bull; Never invents prices, SKUs, or stock</span>
+              <span class="text-[11px] text-muted">Uses Product Name &amp; Category above &bull; Never invents prices, SKUs, or stock</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div class="md:col-span-8">
-                <label for="id_ai_reference_url" class="cc-label">Optional Manufacturer Product / Datasheet URL</label>
-                <input type="url" id="id_ai_reference_url" class="cc-input cc-input-sm" placeholder="https://www.amd.com/en/products/...">
+                <label for="id_ai_reference_url" class="cc-label">Optional Manufacturer Product / Datasheet URL (leave blank to search by Product Name)</label>
+                <input type="text" inputmode="url" autocomplete="off" id="id_ai_reference_url" class="cc-input cc-input-sm" placeholder="Optional https:// manufacturer link (leave empty to lookup by Product Name)">
               </div>
               <div class="md:col-span-4">
                 <button type="button" id="btn-ai-research" class="cc-btn cc-btn-tech cc-btn-sm w-full">
@@ -139,10 +155,12 @@
           <div class="sm:col-span-12">
             <label for="id_short_description" class="cc-label">Short Description</label>
             {{ form.short_description }}
+            {{ form.short_description.errors }}
           </div>
           <div class="sm:col-span-12">
             <label for="id_description" class="cc-label">Full Description</label>
             {{ form.description }}
+            {{ form.description.errors }}
           </div>
           <div class="sm:col-span-12 flex flex-wrap gap-6 pt-1 text-xs font-medium text-ink">
             <label for="id_is_featured" class="flex items-center gap-2 cursor-pointer">
@@ -171,24 +189,29 @@
           <div>
             <label for="id_cost_price" class="cc-label">Internal Cost Price (Rs.)</label>
             {{ form.cost_price }}
+            {{ form.cost_price.errors }}
           </div>
           <div>
             <label for="id_price_change_reason" class="cc-label">Price Change Note</label>
             {{ form.price_change_reason }}
+            {{ form.price_change_reason.errors }}
           </div>
           {% if is_create %}
             <div>
               <label for="id_initial_quantity" class="cc-label">Initial Stock Quantity</label>
               {{ form.initial_quantity }}
+              {{ form.initial_quantity.errors }}
             </div>
           {% endif %}
           <div>
             <label for="id_low_stock_threshold" class="cc-label">Low Stock Threshold</label>
             {{ form.low_stock_threshold }}
+            {{ form.low_stock_threshold.errors }}
           </div>
           <div>
             <label for="id_restock_date" class="cc-label">Expected Restock Date</label>
             {{ form.restock_date }}
+            {{ form.restock_date.errors }}
           </div>
           {% if not is_create and inventory %}
             <div class="sm:col-span-3 text-xs text-muted pt-1">

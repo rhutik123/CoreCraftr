@@ -359,6 +359,14 @@
     if (aiBtn && aiResearchUrl && aiResultsPanel) {
         aiBtn.addEventListener('click', () => executeAiResearch(false));
     }
+    if (aiRefUrlInput) {
+        aiRefUrlInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                executeAiResearch(false);
+            }
+        });
+    }
 
     function formatSpecPreviewVal(v) {
         if (Array.isArray(v)) return v.join(', ');

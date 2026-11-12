@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from ai_engine.services.recommender import AIProviderClient
-from ai_engine.services.spec_researcher import ProductSpecResearchService
+from ai_engine.services.spec_researcher import ProductSpecResearchService, WebSearchClient
 from management.models import AIResearchDraft
 from management.permissions import ensure_portal_roles
 from store.models import Brand, Category, HardwareSpecProfile, Inventory, Product
@@ -198,3 +198,88 @@ class AISpecResearchTestCase(TestCase):
         self.assertEqual(r2.status_code, 200)
         self.assertEqual(r3.status_code, 429)
         self.assertTrue(r3.json()['rate_limited'])
+
+    @override_settings(AI_PROVIDER='openai', AI_API_KEY='fake-key-for-mock-test')
+    def test_unit_suffix_igpu_normalization_and_exact_with_optional_suggestions(self):
+        mock_payload = {
+            'match_status': 'exact',
+            'identified_name': 'Intel Core i7-14700K',
+            'suggested_corrections': [
+                {'name': 'Intel Core i7-14700KF', 'reason': 'Variant without integrated graphics'},
+            ],
+            'proposed_specs': {
+                'socket': 'FCLGA1700',
+                'cpu_family': 'Core 14th Gen',
+                'cores': 20,
+                'threads': 28,
+                'base_clock_ghz': '3.4 GHz',
+                'boost_clock_ghz': '5.6 GHz',
+                'tdp_watts': '125 W',
+                'max_power_watts': '253 W',
+                'integrated_graphics': 'Intel UHD Graphics 770',
+                'includes_stock_cooler': False,
+                'supported_memory_types': 'Up to DDR5 5600 MT/s, Up to DDR4 3200 MT/s',
+                'performance_tier': 'High-End',
+            },
+            'sources': [
+                {'url': 'https://www.intel.com/content/www/us/en/products/sku/236783/specs.html', 'title': 'Intel ARK'}
+            ],
+            'confidence': 'high',
+            'summary_note': 'Verified Intel Core i7-14700K specs.',
+        }
+        with patch.object(AIProviderClient, 'send_json_prompt', return_value=mock_payload):
+            resp = self.client.post(
+                reverse('management:api_ai_research'),
+                data=json.dumps({'product_name': 'Intel Core i7-14700K', 'category_id': self.cpu_cat.id, 'brand_name': 'Intel'}),
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['match_status'], 'exact')
+        specs = data['proposed_specs']
+        self.assertEqual(specs['socket'], 'LGA1700')
+        self.assertEqual(specs['cpu_family'], 'Intel 14th Gen')
+        self.assertEqual(specs['tdp_watts'], 125)
+        self.assertEqual(specs['max_power_watts'], 253)
+        self.assertEqual(specs['base_clock_ghz'], '3.4')
+        self.assertTrue(specs['integrated_graphics'])
+        self.assertEqual(specs['igpu_name'], 'Intel UHD Graphics 770')
+        self.assertEqual(specs['supported_memory_types'], ['DDR4', 'DDR5'])
+        self.assertEqual(specs['performance_tier'], 'high')
+
+    @override_settings(AI_PROVIDER='none', AI_API_KEY='')
+    def test_unconfigured_provider_extracts_specs_from_public_reference_url(self):
+        sample_extract = (
+            'Page Title | Intel Core i7-14700K Processor\n'
+            'Sockets Supported | FCLGA1700\n'
+            'Total Cores | 20\n'
+            'Total Threads | 28\n'
+            'Max Turbo Frequency | 5.6 GHz\n'
+            'Processor Base Power | 125 W\n'
+            'Maximum Turbo Power | 253 W\n'
+            'Max Memory Size | 192 GB\n'
+            'Memory Types | Up to DDR5 5600 MT/s, Up to DDR4 3200 MT/s\n'
+            'Processor Graphics | Intel UHD Graphics 770\n'
+        )
+        with patch.object(WebSearchClient, 'fetch_page_extract', return_value=sample_extract):
+            resp = self.client.post(
+                reverse('management:api_ai_research'),
+                data=json.dumps({
+                    'product_name': 'Intel Core i7-14700K',
+                    'category_id': self.cpu_cat.id,
+                    'brand_name': 'Intel',
+                    'reference_url': 'https://www.intel.com/content/www/us/en/products/sku/236783/specifications.html',
+                }),
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['available'])
+        self.assertEqual(data['match_status'], 'exact')
+        self.assertEqual(data['verification_status'], 'verified_manufacturer')
+        self.assertEqual(data['proposed_specs']['socket'], 'LGA1700')
+        self.assertEqual(data['proposed_specs']['cpu_family'], 'Intel 14th Gen')
+        self.assertEqual(data['proposed_specs']['cores'], 20)
+        self.assertEqual(data['proposed_specs']['tdp_watts'], 125)
+        self.assertEqual(data['proposed_specs']['max_power_watts'], 253)
+        self.assertTrue(data['proposed_specs']['integrated_graphics'])

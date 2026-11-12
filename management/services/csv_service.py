@@ -14,6 +14,7 @@ from management.spec_schemas import (
     CATEGORY_SPEC_FIELDS,
     coerce_spec_value,
     format_spec_for_input,
+    has_complete_critical_specs,
 )
 from store.models import Brand, Category, HardwareSpecProfile, Inventory, Product
 
@@ -440,6 +441,10 @@ def confirm_csv_import_batch(batch_id: int, *, actor=None, skip_error_rows: bool
                     val = 'midrange'
                 setattr(profile, fname, val)
             profile.save()
+            verified_complete = has_complete_critical_specs(profile, prod.category)
+            if verified_complete != prod.spec_verified:
+                prod.spec_verified = verified_complete
+                prod.save(update_fields=['spec_verified'])
 
         if is_create:
             created_count += 1

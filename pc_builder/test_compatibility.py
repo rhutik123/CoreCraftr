@@ -1,8 +1,13 @@
 from decimal import Decimal
+from unittest.mock import patch
 from django.core.management import call_command
 from django.test import TestCase
-from store.models import Brand, Category, HardwareSpecProfile, Inventory, Product
+from ai_engine.services.recommender import AIProviderClient, BuildRecommendationOrchestrator
+from management.services.product_service import create_or_update_product
+from store.models import Brand, Cart, CartItem, Category, HardwareSpecProfile, Inventory, Product
+from store.services.cart_compatibility import CartCompatibilityService
 from pc_builder.models import ChipsetCPUSupport, MotherboardCPUSupport
+from pc_builder.services.alternatives import SmartAlternativesService
 from pc_builder.services.compatibility import (
     CompatibilityEngine,
     STATUS_COMPATIBLE,
@@ -301,3 +306,165 @@ class DeterministicCompatibilityEngineTests(TestCase):
 
         report_b450 = self.engine.evaluate_products({'cpu': ryzen_5600, 'motherboard': b450_mobo})
         self.assertEqual(report_b450.overall_status, STATUS_WARNING)
+
+    def test_newly_added_and_future_products_work_across_compatibility_alternatives_and_ai(self):
+        call_command('seed_hardware_catalog')
+        cpu_cat = Category.objects.filter(component_slot='cpu', is_active=True).first()
+        mobo_cat = Category.objects.filter(component_slot='motherboard', is_active=True).first()
+        intel_brand, _ = Brand.objects.get_or_create(name='Intel', slug='intel')
+        asus_brand, _ = Brand.objects.get_or_create(name='ASUS', slug='asus')
+
+        # 1. Newly portal-created CPU with formatting variants ('LGA 1700', 'Core 14th Gen')
+        new_14700k = create_or_update_product(
+            product_data={
+                'name': 'Intel Core i7-14700K',
+                'sku': 'CPU-INT-14700K-FUT',
+                'category': cpu_cat,
+                'brand': intel_brand,
+                'status': Product.STATUS_PUBLISHED,
+                'price': Decimal('35999.00'),
+                'warranty_months': 36,
+            },
+            initial_quantity=6,
+            low_stock_threshold=2,
+            spec_data={
+                'socket': 'LGA 1700',
+                'cpu_family': 'Core 14th Gen',
+                'tdp_watts': '125',
+                'max_power_watts': '253',
+                'integrated_graphics': 'true',
+                'includes_stock_cooler': 'false',
+                'supported_memory_types': 'DDR4, DDR5',
+                'performance_tier': 'high',
+                'benchmark_score': '94',
+            },
+        )
+        self.assertTrue(new_14700k.spec_verified)
+
+        # Should match seeded LGA1700 Intel 14th Gen board cleanly despite alias spelling
+        lga1700_mobo = (
+            Product.objects.filter(
+                category__component_slot='motherboard',
+                spec_profile__socket='LGA1700',
+                is_active=True,
+                inventory__quantity__gt=0,
+            )
+            .first()
+        )
+        self.assertIsNotNone(lga1700_mobo)
+        r_14700k = self.engine.evaluate_products({'cpu': new_14700k, 'motherboard': lga1700_mobo})
+        self.assertTrue(r_14700k.is_build_valid_compatible)
+        self.assertFalse(any(c.rule_code == 'CPU_MOBO_CHIPSET_UNKNOWN' for c in r_14700k.checks))
+
+        # 2. Brand-new future generation platform (LGA1851 + Z890) with NO pre-seeded chipset rules
+        future_cpu = create_or_update_product(
+            product_data={
+                'name': 'Intel Core Ultra 7 265K',
+                'sku': 'CPU-INT-265K-FUT',
+                'category': cpu_cat,
+                'brand': intel_brand,
+                'status': Product.STATUS_PUBLISHED,
+                'price': Decimal('38999.00'),
+                'warranty_months': 36,
+            },
+            initial_quantity=4,
+            low_stock_threshold=1,
+            spec_data={
+                'socket': 'FCLGA1851',
+                'cpu_family': 'Intel Core Ultra 200',
+                'tdp_watts': '125',
+                'max_power_watts': '250',
+                'integrated_graphics': 'true',
+                'includes_stock_cooler': 'false',
+                'supported_memory_types': 'DDR5',
+                'performance_tier': 'high',
+                'benchmark_score': '95',
+            },
+        )
+        future_mobo = create_or_update_product(
+            product_data={
+                'name': 'ASUS PRIME Z890-P WIFI',
+                'sku': 'MB-Z890P-FUT',
+                'category': mobo_cat,
+                'brand': asus_brand,
+                'status': Product.STATUS_PUBLISHED,
+                'price': Decimal('26999.00'),
+                'warranty_months': 36,
+            },
+            initial_quantity=5,
+            low_stock_threshold=1,
+            spec_data={
+                'socket': 'LGA1851',
+                'chipset': 'Z890',
+                'form_factor': 'ATX',
+                'memory_type': 'DDR5',
+                'memory_slots': '4',
+                'max_memory_gb': '192',
+                'supported_memory_speeds': '5600, 6400',
+                'supported_cpu_families': 'Core Ultra Series 2',
+                'm2_slots': '4',
+                'm2_nvme_slots': '4',
+                'm2_sata_slots': '0',
+                'sata_ports': '4',
+                'eps_connectors_required': '2',
+                'performance_tier': 'high',
+            },
+        )
+        self.assertTrue(future_cpu.spec_verified)
+        self.assertTrue(future_mobo.spec_verified)
+
+        r_future = self.engine.evaluate_products({'cpu': future_cpu, 'motherboard': future_mobo})
+        self.assertTrue(r_future.is_build_valid_compatible)
+        self.assertTrue(
+            any(
+                c.rule_code == 'CPU_MOBO_FAMILY_COMPATIBLE' and c.status == STATUS_COMPATIBLE
+                for c in r_future.checks
+            )
+        )
+
+        # 3. Newly created future board appears in SmartAlternatives replacements when fixing LGA1851/AM4 conflict
+        am4_cpu = Product.objects.filter(category__component_slot='cpu', spec_profile__socket='AM4').first()
+        fixes = SmartAlternativesService(self.engine).get_compatible_replacements(
+            {'cpu': future_cpu, 'motherboard': lga1700_mobo},
+            'motherboard',
+        )
+        fix_ids = {f['product'].id for f in fixes}
+        self.assertIn(future_mobo.id, fix_ids)
+
+        # 4. Cart Compatibility AI validation accepts the newly added future CPU as a verified fix
+        cart = Cart.objects.create(session_key='future-product-ai-cart')
+        CartItem.objects.create(cart=cart, product=am4_cpu, quantity=1)
+        CartItem.objects.create(cart=cart, product=future_mobo, quantity=1)
+        compat_preview = CartCompatibilityService().evaluate_cart(cart, include_ai=False)
+        self.assertTrue(compat_preview.detailed_issues)
+        cpu_dir_key = next(
+            d.direction_key
+            for iss in compat_preview.detailed_issues
+            for d in iss.fix_directions
+            if d.target_slot == 'cpu'
+        )
+        ai_fix_payload = {
+            'summary': 'Replace the AM4 CPU with Intel Core Ultra 7 265K to match your Z890 LGA1851 board.',
+            'directions': {
+                cpu_dir_key: {
+                    'tip': 'Select the LGA1851 Core Ultra CPU.',
+                    'recommended_ids': [future_cpu.id],
+                    'reasons': {str(future_cpu.id): 'Matches LGA1851 socket and DDR5 board.'},
+                }
+            },
+        }
+        with patch.object(AIProviderClient, 'is_configured', True), patch.object(
+            AIProviderClient, 'send_json_prompt', return_value=ai_fix_payload
+        ):
+            compat_ai = CartCompatibilityService().evaluate_cart(cart, include_ai=True)
+        self.assertFalse(compat_ai.is_ai_fallback)
+        self.assertIn('AI-Assisted', compat_ai.advisor_source_label)
+
+        # 5. Catalog serialization for AI Build Recommender exposes rich compatibility fields
+        serialized = BuildRecommendationOrchestrator._serialize_catalog_for_ai()
+        by_id = {row['id']: row for row in serialized}
+        self.assertIn(future_cpu.id, by_id)
+        self.assertEqual(by_id[future_cpu.id]['cpu_family'], 'Intel Core Ultra 200')
+        self.assertEqual(by_id[future_cpu.id]['supported_memory_types'], ['DDR5'])
+        self.assertEqual(by_id[future_mobo.id]['chipset'], 'Z890')
+        self.assertEqual(by_id[future_mobo.id]['supported_cpu_families'], ['Core Ultra Series 2'])

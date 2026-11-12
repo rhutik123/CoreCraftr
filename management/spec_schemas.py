@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal, InvalidOperation
 
 UNKNOWN_SENTINELS = {'', 'unknown', 'n/a', 'na', 'unspecified', 'tbd', 'none', 'null'}
@@ -9,7 +10,7 @@ UNKNOWN_SENTINELS = {'', 'unknown', 'n/a', 'na', 'unspecified', 'tbd', 'none', '
 CATEGORY_SPEC_FIELDS = {
     'cpu': [
         {'name': 'socket', 'label': 'Socket', 'type': 'str', 'unit': '', 'compatibility_critical': True, 'placeholder': 'e.g. AM5, LGA1700'},
-        {'name': 'cpu_family', 'label': 'CPU Family / Series', 'type': 'str', 'unit': '', 'compatibility_critical': True, 'placeholder': 'e.g. Ryzen 7000, Core 14th Gen'},
+        {'name': 'cpu_family', 'label': 'CPU Family / Series', 'type': 'str', 'unit': '', 'compatibility_critical': True, 'placeholder': 'e.g. Ryzen 7000, Intel 14th Gen'},
         {'name': 'microarchitecture', 'label': 'Microarchitecture', 'type': 'str', 'unit': '', 'compatibility_critical': False, 'placeholder': 'e.g. Zen 4, Raptor Lake'},
         {'name': 'cores', 'label': 'Cores', 'type': 'int', 'unit': '', 'compatibility_critical': False, 'placeholder': 'e.g. 8'},
         {'name': 'threads', 'label': 'Threads', 'type': 'int', 'unit': '', 'compatibility_critical': False, 'placeholder': 'e.g. 16'},
@@ -293,3 +294,74 @@ def format_spec_for_input(field_def: dict, value) -> str:
     if ftype == 'json_dict':
         return json.dumps(value) if value else ''
     return str(value)
+
+
+CORE_COMPATIBILITY_REQUIREMENTS_BY_SLOT = {
+    'cpu': [('socket',), ('cpu_family',), ('tdp_watts', 'max_power_watts'), ('supported_memory_types',)],
+    'motherboard': [('socket',), ('chipset',), ('form_factor',), ('memory_type',)],
+    'ram': [('memory_type',), ('ram_capacity_gb',), ('ram_modules',), ('ram_speed_mhz',)],
+    'gpu': [('gpu_length_mm',), ('tdp_watts', 'max_power_watts', 'recommended_psu_watts')],
+    'storage': [('storage_type',), ('storage_form_factor',)],
+    'psu': [('wattage',), ('psu_form_factor',)],
+    'case': [('supported_form_factors', 'form_factor'), ('max_gpu_length_mm',), ('max_cooler_height_mm',)],
+    'cooler': [('cooler_type',), ('supported_sockets',), ('cooler_height_mm', 'radiator_size_mm')],
+    'case_fan': [('fan_size_mm',)],
+}
+
+
+def has_complete_critical_specs(profile, category) -> bool:
+    """
+    Return True when a HardwareSpecProfile supplies the core compatibility-critical specs
+    for its category slot so CompatibilityEngine, SmartAlternatives, and AI advisors can rely on it.
+    """
+    if profile is None or category is None:
+        return False
+    slot = getattr(category, 'component_slot', None) or 'other'
+    requirements = CORE_COMPATIBILITY_REQUIREMENTS_BY_SLOT.get(slot)
+    if not requirements:
+        return not get_critical_field_names(slot)
+
+    for candidate_fields in requirements:
+        if not any(not is_unknown_raw(getattr(profile, fname, None)) for fname in candidate_fields):
+            return False
+    return True
+
+
+def normalize_socket(value: str) -> str:
+    """Normalize common socket formatting differences (e.g. 'FCLGA1700', 'LGA 1700', 'Socket AM5')."""
+    if not value:
+        return ''
+    text = re.sub(r'\s+', ' ', str(value).strip())
+    upper = text.upper()
+    if upper.startswith('SOCKET '):
+        upper = upper[7:].strip()
+    if upper.startswith('FC') and 'LGA' in upper:
+        upper = upper.replace('FC', '', 1).strip()
+    compact = upper.replace(' ', '')
+    if compact.startswith(('LGA', 'AM', 'TR', 'STR', 'SP', 'FM')):
+        return compact
+    return text
+
+
+def normalize_cpu_family(value: str) -> str:
+    """Normalize equivalent CPU generation names (e.g. 'Core 14th Gen' -> 'Intel 14th Gen')."""
+    if not value:
+        return ''
+    text = re.sub(r'\s+', ' ', str(value).strip())
+    lowered = text.lower()
+    intel_gen = re.match(
+        r'^(?:intel\s+)?(?:core\s+)?(\d{2})th\s+gen(?:\s+intel)?(?:\s+core)?(?:\s+processors?)?$',
+        lowered,
+    )
+    if intel_gen:
+        return f'Intel {intel_gen.group(1)}th Gen'
+    if re.match(r'^(?:intel\s+)?core\s+ultra\s+(?:series\s+2|200s?)(?:\s+processors?)?$', lowered):
+        return 'Intel Core Ultra 200'
+    ryzen = re.match(
+        r'^(?:amd\s+)?ryzen(?:\s+(threadripper))?\s+(\d{4}[a-z]?)(?:\s+series|\s+desktop|\s+processors?)?$',
+        lowered,
+    )
+    if ryzen:
+        mid = ' Threadripper' if ryzen.group(1) else ''
+        return f'Ryzen{mid} {ryzen.group(2).upper()}'
+    return text

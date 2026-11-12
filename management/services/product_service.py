@@ -13,6 +13,7 @@ from management.spec_schemas import (
     SHARED_METADATA_FIELDS,
     coerce_spec_value,
     get_spec_fields_for_slot,
+    has_complete_critical_specs,
 )
 from store.models import HardwareSpecProfile, Inventory, Product, ProductSpecification
 
@@ -269,6 +270,17 @@ def create_or_update_product(
             raise ValidationError(errors)
         profile.save()
 
+    verified_complete = has_complete_critical_specs(profile, category)
+    update_fields = []
+    if (is_create or spec_data is not None) and product.spec_verified != verified_complete:
+        product.spec_verified = verified_complete
+        update_fields.append('spec_verified')
+    elif not product.spec_verified and verified_complete:
+        product.spec_verified = True
+        update_fields.append('spec_verified')
+    if update_fields:
+        product.save(update_fields=update_fields)
+
     # Replace custom display specifications when provided
     if custom_specs is not None:
         ProductSpecification.objects.filter(product=product).delete()
@@ -299,6 +311,12 @@ def create_or_update_product(
             draft.approved_by = actor_user
             draft.approved_at = timezone.now()
             draft.save(update_fields=['status', 'product', 'approved_by', 'approved_at'])
+            if not product.spec_source and isinstance(draft.sources, list) and draft.sources:
+                primary = draft.sources[0]
+                src_url = primary.get('url', '') if isinstance(primary, dict) else ''
+                if src_url:
+                    product.spec_source = src_url[:255]
+                    product.save(update_fields=['spec_source'])
             log_portal_action(
                 actor=actor_user,
                 action='ai.draft_approved',

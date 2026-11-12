@@ -564,7 +564,7 @@ def compare_products(request):
     compare_ids = request.session.get('compare_product_ids', [])
     products = list(
         Product.objects.filter(id__in=compare_ids, is_active=True)
-        .select_related('category', 'brand', 'inventory')
+        .select_related('category', 'brand', 'inventory', 'spec_profile')
         .prefetch_related('specifications')
     )
     # Preserve session insertion order
