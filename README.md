@@ -269,7 +269,3 @@ CSV imports in `/management/import-export/` enforce a `5 MB` / `2,000`-row limit
 - Customer shipment tracking numbers, invoice PDF generation, and order cancellation/return flows.
 
 ---
-
-## License
-
-No `LICENSE` file is currently present in this repository. All rights and licensing permissions remain unspecified until an explicit license file is added by the repository owner.
